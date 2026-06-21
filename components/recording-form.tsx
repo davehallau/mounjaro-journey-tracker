@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import Link from "next/link";
 import { PrettySelect } from "@/components/pretty-select";
+import { scaleColor } from "@/lib/scale-colors";
 import {
   DOSES,
   EMPTY_FORM_STATE,
@@ -46,7 +47,11 @@ function ScaleSelect({
         defaultValue={defaultValue != null ? String(defaultValue) : ""}
         options={[
           { value: "", label: "—" },
-          ...options.map((opt, i) => ({ value: String(i + 1), label: opt })),
+          ...options.map((opt, i) => ({
+            value: String(i + 1),
+            label: opt,
+            color: scaleColor(i + 1),
+          })),
         ]}
       />
     </div>

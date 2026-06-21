@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
-export type SelectOption = { value: string; label: string };
+export type SelectOption = { value: string; label: string; color?: string };
 
 /**
  * Custom dropdown styled like the participant switcher, but form-friendly: it
@@ -57,8 +57,16 @@ export function PrettySelect({
         aria-label={ariaLabel}
         className="input flex w-full items-center justify-between gap-2 text-left"
       >
-        <span className={`min-w-0 truncate ${isPlaceholder ? "text-slate-400" : ""}`}>
-          {selected.label}
+        <span className="flex min-w-0 items-center gap-2">
+          {selected.color && (
+            <span
+              className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
+              style={{ background: selected.color }}
+            />
+          )}
+          <span className={`truncate ${isPlaceholder ? "text-slate-400" : ""}`}>
+            {selected.label}
+          </span>
         </span>
         <svg
           viewBox="0 0 20 20"
@@ -99,8 +107,18 @@ export function PrettySelect({
                       : "text-slate-700 hover:bg-slate-100"
                   }`}
                 >
-                  <span className={o.value === "" ? "text-slate-400" : ""}>
-                    {o.label}
+                  <span className="flex min-w-0 items-center gap-2">
+                    {o.color && (
+                      <span
+                        className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
+                        style={{ background: o.color }}
+                      />
+                    )}
+                    <span
+                      className={`truncate ${o.value === "" ? "text-slate-400" : ""}`}
+                    >
+                      {o.label}
+                    </span>
                   </span>
                   {sel && (
                     <svg

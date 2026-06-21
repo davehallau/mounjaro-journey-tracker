@@ -17,6 +17,7 @@ import {
 import type { CurveFactory } from "victory-vendor/d3-shape";
 import type { RecordingView } from "@/lib/data";
 import { BMI_BANDS, bmiBand, roundBmi } from "@/lib/bmi";
+import { scaleColor as moodColor } from "@/lib/scale-colors";
 
 type Series = {
   key: keyof RecordingView;
@@ -51,20 +52,6 @@ const PRESETS: { label: string; months: number | "all" }[] = [
 ];
 
 const fmtDate = (d: string) => format(new Date(d), "d MMM");
-
-// Mood 1 (low) → 7 ("hyper") mapped to red → green → purple, used for the
-// background tint and the tooltip swatch. Two intensities per hue.
-const MOOD_COLORS = [
-  "#b91c1c", // 1 very low — dark red
-  "#f87171", // 2 low — red
-  "#f59e0b", // 3 meh — amber
-  "#22c55e", // 4 good — green
-  "#15803d", // 5 great — deep green
-  "#c084fc", // 6 elated — light purple
-  "#9333ea", // 7 hyper — purple
-];
-const moodColor = (m: number) =>
-  MOOD_COLORS[Math.min(6, Math.max(0, Math.round(m) - 1))];
 
 // Straight lines with corners rounded to a small fixed radius (px). Because the
 // segments stay straight, a solid line and its dotted companion underneath align
