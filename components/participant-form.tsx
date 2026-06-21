@@ -2,7 +2,9 @@
 
 import { useActionState } from "react";
 import Link from "next/link";
+import { format } from "date-fns";
 import type { Participant } from "@/lib/db/schema";
+import { DatePicker } from "@/components/date-picker";
 import {
   EMPTY_FORM_STATE,
   GENDERS,
@@ -23,6 +25,7 @@ export function ParticipantForm({
 }) {
   const [state, formAction, pending] = useActionState(action, EMPTY_FORM_STATE);
   const err = state.errors ?? {};
+  const today = format(new Date(), "yyyy-MM-dd");
 
   return (
     <form action={formAction} className="space-y-4">
@@ -45,13 +48,13 @@ export function ParticipantForm({
           <label className="label" htmlFor="dob">
             Date of birth
           </label>
-          <input
+          <DatePicker
             id="dob"
             name="dob"
-            type="date"
-            defaultValue={participant?.dob}
-            required
-            className="input"
+            ariaLabel="Date of birth"
+            defaultValue={participant?.dob ?? ""}
+            max={today}
+            placeholder="Select date"
           />
           {err.dob && <p className="field-error">{err.dob}</p>}
         </div>

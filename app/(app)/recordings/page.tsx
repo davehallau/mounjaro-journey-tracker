@@ -2,7 +2,7 @@ import Link from "next/link";
 import { format } from "date-fns";
 import { getActiveParticipant, getRecordings } from "@/lib/data";
 import { bmiBand, roundBmi } from "@/lib/bmi";
-import { RecordingForm } from "@/components/recording-form";
+import { AddRecordingPanel } from "@/components/add-recording-panel";
 import { BmiBadge } from "@/components/bmi-badge";
 import { DeleteForm } from "@/components/delete-form";
 import { createRecording, deleteRecording } from "./actions";
@@ -14,8 +14,13 @@ export async function generateMetadata() {
   };
 }
 
-export default async function RecordingsPage() {
+export default async function RecordingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ new?: string }>;
+}) {
   const participant = await getActiveParticipant();
+  const openAddForm = (await searchParams).new != null;
 
   if (!participant) {
     return (
@@ -51,17 +56,12 @@ export default async function RecordingsPage() {
         </p>
       </div>
 
-      <section className="card">
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">
-          Add a recording
-        </h2>
-        <RecordingForm
-          action={createAction}
-          defaultDate={today}
-          latest={latest}
-          submitLabel="Add recording"
-        />
-      </section>
+      <AddRecordingPanel
+        action={createAction}
+        defaultDate={today}
+        latest={latest}
+        initialOpen={openAddForm}
+      />
 
       <section className="space-y-3">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">

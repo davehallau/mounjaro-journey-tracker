@@ -41,7 +41,7 @@ export default async function DashboardPage() {
         <div className="card text-center text-slate-500">
           No recordings yet.{" "}
           <Link
-            href="/recordings"
+            href="/recordings?new=1"
             className="font-medium text-emerald-700 hover:underline"
           >
             Add your first recording
@@ -67,7 +67,7 @@ export default async function DashboardPage() {
         <h1 className="text-xl font-semibold text-slate-900">
           {participant.name}
         </h1>
-        <Link href="/recordings" className="btn-primary">
+        <Link href="/recordings?new=1" className="btn-primary">
           + Add recording
         </Link>
       </div>

@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { format, subMonths } from "date-fns";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { format, parseISO, subMonths } from "date-fns";
 import {
   Area,
   CartesianGrid,
@@ -17,7 +17,8 @@ import {
 import type { CurveFactory } from "victory-vendor/d3-shape";
 import type { RecordingView } from "@/lib/data";
 import { BMI_BANDS, bmiBand, roundBmi } from "@/lib/bmi";
-import { scaleColor as moodColor } from "@/lib/scale-colors";
+import { scaleColorLight } from "@/lib/scale-colors";
+import { DatePicker } from "@/components/date-picker";
 
 type Series = {
   key: keyof RecordingView;
@@ -230,7 +231,7 @@ export function TrendsChart({
       bands.push({
         x1: chartData[i].recordedOn,
         x2: chartData[i + 1].recordedOn,
-        color: moodColor(avg),
+        color: scaleColorLight(avg),
       });
     }
     return bands;
@@ -262,62 +263,133 @@ export function TrendsChart({
 
   const customActive = from !== "" || to !== "";
 
+  const [rangeOpen, setRangeOpen] = useState(false);
+  const rangeRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!rangeOpen) return;
+    const onPointer = (e: MouseEvent) => {
+      if (rangeRef.current && !rangeRef.current.contains(e.target as Node))
+        setRangeOpen(false);
+    };
+    document.addEventListener("mousedown", onPointer);
+    return () => document.removeEventListener("mousedown", onPointer);
+  }, [rangeOpen]);
+
+  const rangeLabel = customActive
+    ? `${from ? format(parseISO(from), "d MMM yyyy") : "Start"} – ${
+        to ? format(parseISO(to), "d MMM yyyy") : "Now"
+      }`
+    : PRESETS.find((p) => p.months === preset)?.label === "All"
+      ? "All time"
+      : `Last ${PRESETS.find((p) => p.months === preset)?.label}`;
+
   return (
     <div className="space-y-5">
       {/* Date range — applies to every chart */}
       <div className="card">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="inline-flex rounded-lg border border-slate-200 p-0.5">
-            {PRESETS.map((p) => {
-              const active = !customActive && preset === p.months;
-              return (
-                <button
-                  key={p.label}
-                  onClick={() => {
-                    setPreset(p.months);
-                    setFrom("");
-                    setTo("");
-                  }}
-                  className={`rounded-md px-3 py-1 text-sm font-medium transition ${
-                    active
-                      ? "bg-emerald-600 text-white"
-                      : "text-slate-600 hover:bg-slate-100"
-                  }`}
-                >
-                  {p.label}
-                </button>
-              );
-            })}
-          </div>
+        <div ref={rangeRef} className="relative inline-block">
+          <button
+            type="button"
+            onClick={() => setRangeOpen((o) => !o)}
+            aria-haspopup="dialog"
+            aria-expanded={rangeOpen}
+            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"
+          >
+            <svg
+              viewBox="0 0 20 20"
+              fill="currentColor"
+              className="h-4 w-4 text-slate-400"
+              aria-hidden="true"
+            >
+              <path
+                fillRule="evenodd"
+                d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v9a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zM4 8h12v8H4V8z"
+                clipRule="evenodd"
+              />
+            </svg>
+            <span>{rangeLabel}</span>
+            <svg
+              viewBox="0 0 20 20"
+              fill="currentColor"
+              className={`h-4 w-4 text-slate-400 transition-transform ${
+                rangeOpen ? "rotate-180" : ""
+              }`}
+              aria-hidden="true"
+            >
+              <path
+                fillRule="evenodd"
+                d="M5.23 7.21a.75.75 0 011.06.02L10 11.06l3.71-3.83a.75.75 0 111.08 1.04l-4.25 4.39a.75.75 0 01-1.08 0L5.21 8.27a.75.75 0 01.02-1.06z"
+                clipRule="evenodd"
+              />
+            </svg>
+          </button>
 
-          <div className="flex items-center gap-2 text-sm text-slate-500">
-            <input
-              type="date"
-              value={from}
-              onChange={(e) => setFrom(e.target.value)}
-              className="input !w-auto !py-1"
-              aria-label="From date"
-            />
-            <span>→</span>
-            <input
-              type="date"
-              value={to}
-              onChange={(e) => setTo(e.target.value)}
-              className="input !w-auto !py-1"
-              aria-label="To date"
-            />
-            {customActive && (
-              <button
-                onClick={() => {
-                  setFrom("");
-                  setTo("");
-                }}
-                className="text-emerald-700 hover:underline"
-              >
-                Clear
-              </button>
-            )}
-          </div>
+          {rangeOpen && (
+            <div className="absolute left-0 z-30 mt-1 w-72 max-w-[calc(100vw-2rem)] space-y-3 rounded-xl border border-slate-200 bg-white p-3 shadow-lg ring-1 ring-black/5">
+              <div className="flex flex-wrap gap-1.5">
+                {PRESETS.map((p) => {
+                  const active = !customActive && preset === p.months;
+                  return (
+                    <button
+                      key={p.label}
+                      type="button"
+                      onClick={() => {
+                        setPreset(p.months);
+                        setFrom("");
+                        setTo("");
+                        setRangeOpen(false);
+                      }}
+                      className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
+                        active
+                          ? "border-emerald-600 bg-emerald-600 text-white"
+                          : "border-slate-200 text-slate-600 hover:bg-slate-100"
+                      }`}
+                    >
+                      {p.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="border-t border-slate-100 pt-3">
+                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-400">
+                  Custom range
+                </p>
+                <div className="space-y-2">
+                  <div>
+                    <label className="label !mb-1 text-xs">From</label>
+                    <DatePicker
+                      value={from}
+                      onChange={setFrom}
+                      ariaLabel="From date"
+                      placeholder="Start"
+                    />
+                  </div>
+                  <div>
+                    <label className="label !mb-1 text-xs">To</label>
+                    <DatePicker
+                      value={to}
+                      onChange={setTo}
+                      ariaLabel="To date"
+                      placeholder="Now"
+                    />
+                  </div>
+                </div>
+                {customActive && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFrom("");
+                      setTo("");
+                    }}
+                    className="mt-2 text-xs font-medium text-emerald-700 hover:underline"
+                  >
+                    Clear custom range
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -523,7 +595,7 @@ export function TrendsChart({
                       y1={0}
                       y2={7}
                       fill={b.color}
-                      fillOpacity={0.18}
+                      fillOpacity={0.85}
                       ifOverflow="extendDomain"
                     />
                   ))}

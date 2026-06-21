@@ -23,7 +23,13 @@ export const SCALE_LABELS = {
     "7 — hyper",
   ],
   energy: ["1 — exhausted", "2", "3 — okay", "4", "5 — energetic"],
-  appetite: ["1 — suppressed", "2", "3 — normal", "4", "5 — very hungry"],
+  appetite: [
+    "1 — suppressed",
+    "2 — reduced",
+    "3 — normal",
+    "4 — hungry",
+    "5 — very hungry",
+  ],
 } as const;
 
 const isoDate = z
