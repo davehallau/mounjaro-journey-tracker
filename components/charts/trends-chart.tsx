@@ -580,6 +580,7 @@ export function TrendsChart({
                     name={s.label}
                     stroke={s.color}
                     strokeWidth={2}
+                    connectNulls
                     dot={false}
                   />
                 ))}
@@ -591,6 +592,7 @@ export function TrendsChart({
                     name="Appetite"
                     stroke="#e11d48"
                     strokeWidth={2}
+                    connectNulls
                     dot={false}
                   />
                 )}
@@ -602,6 +604,7 @@ export function TrendsChart({
                     name="BMI"
                     stroke="#2563eb"
                     strokeWidth={2}
+                    connectNulls
                     dot={false}
                   />
                 )}
@@ -726,7 +729,7 @@ export function TrendsChart({
                     isAnimationActive={false}
                   />
                 )}
-                {/* Solid lines — adjacent readings only; gaps fall through to dotted. */}
+                {/* Solid lines connect readings across dose-only days. */}
                 {WELLBEING_SERIES.filter(
                   (s) => s.key !== "mood" && wellbeingVisible[s.key],
                 ).map((s) => (
@@ -738,6 +741,7 @@ export function TrendsChart({
                     name={s.label}
                     stroke={s.color}
                     strokeWidth={2}
+                    connectNulls
                     dot={false}
                   />
                 ))}
@@ -749,6 +753,7 @@ export function TrendsChart({
                     name="Mood"
                     stroke="#334155"
                     strokeWidth={2}
+                    connectNulls
                     dot={false}
                   />
                 )}
