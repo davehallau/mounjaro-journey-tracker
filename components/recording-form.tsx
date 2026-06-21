@@ -98,15 +98,14 @@ export function RecordingForm({
       const n = Number(v);
       return Number.isNaN(n) ? String(v) : String(n);
     };
-    const txt = (v: unknown) => (v == null ? "" : String(v).trim());
+    // Notes aren't pre-filled, so they're excluded from the duplicate check.
     const same =
       num(fd.get("weightKg")) === num(latest.weightKg) &&
       num(fd.get("waistCm")) === num(latest.waistCm) &&
       num(fd.get("mood")) === num(latest.mood) &&
       num(fd.get("energy")) === num(latest.energy) &&
       num(fd.get("appetite")) === num(latest.appetite) &&
-      num(fd.get("mounjaroDoseMg")) === num(latest.mounjaroDoseMg) &&
-      txt(fd.get("notes")) === txt(latest.notes);
+      num(fd.get("mounjaroDoseMg")) === num(latest.mounjaroDoseMg);
     if (
       same &&
       !window.confirm(
@@ -219,7 +218,7 @@ export function RecordingForm({
           id="notes"
           name="notes"
           rows={2}
-          defaultValue={defaults?.notes ?? ""}
+          defaultValue={recording?.notes ?? ""}
           placeholder="Side effects, context, anything worth remembering…"
           className="input"
         />
