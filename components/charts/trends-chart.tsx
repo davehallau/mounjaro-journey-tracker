@@ -288,10 +288,16 @@ export function TrendsChart({
     ...dosesInRange.map((d) => ts(d.recordedOn)),
   ];
   const tMin = allTs.length ? Math.min(...allTs) : 0;
-  const tMax = allTs.length ? Math.max(...allTs) : 0;
+  const baseTMax = allTs.length ? Math.max(...allTs) : 0;
+  // The last dose's band runs 10 days past it (when the dose is treated as
+  // lapsed); the axis extends to cover that if needed.
+  const lastDoseEnd = dosesInRange.length
+    ? ts(dosesInRange[dosesInRange.length - 1].recordedOn) + TEN_DAYS
+    : baseTMax;
+  const tMax = Math.max(baseTMax, lastDoseEnd);
 
   // Shaded bands spanning each run of the same medication + dose, carried
-  // forward until the next change (or the end of the visible range).
+  // forward until the next change (or 10 days past the final dose).
   const doseBlocks: { x1: number; x2: number; label: string }[] = [];
   const sameDose = (a: DoseView, b: DoseView) =>
     a.medication === b.medication && a.doseMg === b.doseMg;
@@ -304,7 +310,10 @@ export function TrendsChart({
       const cur = dosesInRange[doseStart];
       doseBlocks.push({
         x1: ts(cur.recordedOn),
-        x2: i < dosesInRange.length ? ts(dosesInRange[i].recordedOn) : tMax,
+        x2:
+          i < dosesInRange.length
+            ? ts(dosesInRange[i].recordedOn)
+            : lastDoseEnd,
         label: `${medicationLabel(cur.medication)}${
           cur.doseMg != null ? ` ${cur.doseMg} mg` : ""
         }`,
