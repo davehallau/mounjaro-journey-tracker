@@ -110,6 +110,60 @@ const curveRounded: CurveFactory = (context) => {
   };
 };
 
+// A "nice" linear axis: 5–7 intervals regardless of the absolute values, with
+// min and max snapped outward to a round step (mantissa 1/2/5, falling back to
+// 2.5 only when that's the only way to stay in the 5–7 range). The same step is
+// used for both ends, and the tick list is returned alongside the domain.
+function niceAxis(
+  rawMin: number,
+  rawMax: number,
+): { domain: [number, number]; ticks: number[] } {
+  let min = rawMin;
+  let max = rawMax;
+  if (min === max) {
+    min -= 1;
+    max += 1;
+  }
+  const pad = (max - min) * 0.1;
+  min -= pad;
+  max += pad;
+
+  const candidates: number[] = [];
+  for (let k = -3; k <= 6; k++) {
+    const p = Math.pow(10, k);
+    for (const m of [1, 2, 2.5, 5]) candidates.push(m * p);
+  }
+  candidates.sort((a, b) => a - b);
+
+  const evalStep = (step: number) => {
+    const lo = Math.floor(min / step) * step;
+    const hi = Math.ceil(max / step) * step;
+    return { lo, hi, step, n: Math.round((hi - lo) / step) };
+  };
+  // 2.5-based steps are less tidy — rank them after 1/2/5.
+  const rank = (step: number) => {
+    let m = step;
+    while (m >= 10) m /= 10;
+    while (m < 1) m *= 10;
+    return Math.abs(m - 2.5) < 1e-9 ? 1 : 0;
+  };
+
+  const scored = candidates.map(evalStep);
+  const inRange = scored.filter((r) => r.n >= 5 && r.n <= 7);
+  const pick = (inRange.length ? inRange : scored).sort(
+    (a, b) =>
+      Math.abs(a.n - 6) - Math.abs(b.n - 6) ||
+      rank(a.step) - rank(b.step) ||
+      b.step - a.step,
+  )[0];
+
+  const ticks: number[] = [];
+  for (let t = pick.lo; t <= pick.hi + pick.step / 2; t += pick.step) {
+    ticks.push(Number(t.toFixed(5)));
+  }
+  return { domain: [pick.lo, pick.hi], ticks };
+}
+
 export type RangeState = { preset: number | "all"; from: string; to: string };
 
 export function TrendsChart({
@@ -269,8 +323,8 @@ export function TrendsChart({
   ];
 
   // Left-axis domain: scaled to the *visible* main-axis series (not zero-based),
-  // padded by 20% of the data range, then rounded out to the nearest 5. Recomputes
-  // as series are toggled on/off.
+  // with a dynamic step giving 5–7 intervals at whatever magnitude the data sits
+  // (see niceAxis). Recomputes as series are toggled on/off.
   const mainAxis: {
     domain: [number | string, number | string];
     ticks?: number[];
@@ -287,14 +341,7 @@ export function TrendsChart({
     }
     if (!vals.length)
       return { domain: [0, "auto"] as [number | string, number | string] };
-    const min = Math.min(...vals);
-    const max = Math.max(...vals);
-    const pad = (max - min || max || 1) * 0.2;
-    const lo = Math.floor((min - pad) / 5) * 5;
-    const hi = Math.ceil((max + pad) / 5) * 5;
-    const ticks: number[] = [];
-    for (let t = lo; t <= hi; t += 5) ticks.push(t);
-    return { domain: [lo, hi], ticks };
+    return niceAxis(Math.min(...vals), Math.max(...vals));
   })();
 
   // Mood drawn as a background tint: one band per gap between recordings,
@@ -555,7 +602,7 @@ export function TrendsChart({
                   orientation="left"
                   domain={mainAxis.domain}
                   ticks={mainAxis.ticks}
-                  allowDecimals={false}
+                  allowDecimals
                   tick={{ fontSize: 12, fill: "#64748b" }}
                   width={44}
                 />
