@@ -885,16 +885,19 @@ type TooltipProps = {
     value?: number;
     color?: string;
     dataKey?: string | number;
-    payload?: { medication?: string | null; doseMg?: number | null };
+    payload?: { t?: number; medication?: string | null; doseMg?: number | null };
   }>;
 };
 
 function TrendsTooltip({ active, label, payload }: TooltipProps) {
   if (!active || !payload?.length) return null;
+  // Only series with a real data point ON the hovered date — never carry a
+  // body value across to a dose-only date.
+  const here = payload.filter((p) => Number(p.payload?.t) === Number(label));
   // Drop empty series, dotted companions, and the dose needle from the listed
   // metrics; dedupe by name.
   const seen = new Set<string>();
-  const items = payload.filter((p) => {
+  const items = here.filter((p) => {
     const name = p.name ?? "";
     const key = String(p.dataKey ?? "");
     if (p.value == null || seen.has(name)) return false;
@@ -902,7 +905,7 @@ function TrendsTooltip({ active, label, payload }: TooltipProps) {
     seen.add(name);
     return true;
   });
-  const dose = payload.find((p) => p.payload?.medication != null)?.payload;
+  const dose = here.find((p) => p.payload?.medication != null)?.payload;
   const hasDose = dose?.medication != null;
   if (!items.length && !hasDose) return null;
   return (
