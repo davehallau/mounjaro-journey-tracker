@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import Link from "next/link";
+import { PrettySelect } from "@/components/pretty-select";
 import {
   DOSES,
   EMPTY_FORM_STATE,
@@ -38,19 +39,16 @@ function ScaleSelect({
       <label className="label" htmlFor={name}>
         {label}
       </label>
-      <select
+      <PrettySelect
         id={name}
         name={name}
+        ariaLabel={label}
         defaultValue={defaultValue != null ? String(defaultValue) : ""}
-        className="input"
-      >
-        <option value="">—</option>
-        {options.map((opt, i) => (
-          <option key={i} value={i + 1}>
-            {opt}
-          </option>
-        ))}
-      </select>
+        options={[
+          { value: "", label: "—" },
+          ...options.map((opt, i) => ({ value: String(i + 1), label: opt })),
+        ]}
+      />
     </div>
   );
 }
@@ -58,11 +56,14 @@ function ScaleSelect({
 export function RecordingForm({
   action,
   defaultDate,
+  defaultDose,
   recording,
   submitLabel = "Save",
 }: {
   action: Action;
   defaultDate?: string;
+  /** Pre-select this dose for a new recording (e.g. the participant's latest). */
+  defaultDose?: number | null;
   recording?: RecordingDefaults;
   submitLabel?: string;
 }) {
@@ -71,7 +72,9 @@ export function RecordingForm({
   const doseDefault =
     recording?.mounjaroDoseMg != null
       ? String(Number(recording.mounjaroDoseMg))
-      : "none";
+      : defaultDose != null
+        ? String(defaultDose)
+        : "none";
 
   return (
     <form action={formAction} className="space-y-4">
@@ -150,19 +153,16 @@ export function RecordingForm({
           <label className="label" htmlFor="mounjaroDoseMg">
             Mounjaro dose
           </label>
-          <select
+          <PrettySelect
             id="mounjaroDoseMg"
             name="mounjaroDoseMg"
+            ariaLabel="Mounjaro dose"
             defaultValue={doseDefault}
-            className="input"
-          >
-            <option value="none">None</option>
-            {DOSES.map((d) => (
-              <option key={d} value={d}>
-                {d} mg
-              </option>
-            ))}
-          </select>
+            options={[
+              { value: "none", label: "None" },
+              ...DOSES.map((d) => ({ value: String(d), label: `${d} mg` })),
+            ]}
+          />
           {err.mounjaroDoseMg && (
             <p className="field-error">{err.mounjaroDoseMg}</p>
           )}

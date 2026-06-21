@@ -3,6 +3,7 @@ import { format } from "date-fns";
 import { getActiveParticipant, getRecordings } from "@/lib/data";
 import { bmiBand, roundBmi } from "@/lib/bmi";
 import { RecordingForm } from "@/components/recording-form";
+import { BmiBadge } from "@/components/bmi-badge";
 import { DeleteForm } from "@/components/delete-form";
 import { createRecording, deleteRecording } from "./actions";
 
@@ -35,6 +36,8 @@ export default async function RecordingsPage() {
   ).slice()
     .reverse(); // newest first for the table
   const today = format(new Date(), "yyyy-MM-dd");
+  // Default a new recording's dose to the most recent recorded dose.
+  const lastDose = rows.find((r) => r.mounjaroDoseMg != null)?.mounjaroDoseMg ?? null;
   const createAction = createRecording.bind(null, participant.id);
 
   return (
@@ -55,6 +58,7 @@ export default async function RecordingsPage() {
         <RecordingForm
           action={createAction}
           defaultDate={today}
+          defaultDose={lastDose}
           submitLabel="Add recording"
         />
       </section>
@@ -73,12 +77,12 @@ export default async function RecordingsPage() {
                 <tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500">
                   <th className="px-4 py-3">Date</th>
                   <th className="px-4 py-3">Weight</th>
-                  <th className="px-4 py-3">BMI</th>
+                  <th className="px-4 py-3 text-center">BMI</th>
                   <th className="px-4 py-3">Waist</th>
-                  <th className="px-4 py-3">Mood</th>
-                  <th className="px-4 py-3">Energy</th>
-                  <th className="px-4 py-3">Appetite</th>
-                  <th className="px-4 py-3">Dose</th>
+                  <th className="px-4 py-3 text-center">Mood</th>
+                  <th className="px-4 py-3 text-center">Energy</th>
+                  <th className="px-4 py-3 text-center">Appetite</th>
+                  <th className="px-4 py-3 text-center">Dose</th>
                   <th className="px-4 py-3">Notes</th>
                   <th className="px-4 py-3" />
                 </tr>
@@ -95,31 +99,27 @@ export default async function RecordingsPage() {
                         {format(new Date(r.recordedOn), "d MMM yyyy")}
                       </td>
                       <td className="px-4 py-3">{r.weightKg} kg</td>
-                      <td className="px-4 py-3">
-                        <span
-                          className="inline-flex items-center gap-1.5"
-                          title={band.explanation}
-                        >
-                          <span
-                            className="inline-block h-2.5 w-2.5 rounded-full"
-                            style={{ background: band.color }}
-                          />
-                          {roundBmi(r.bmi)}
-                        </span>
+                      <td className="px-4 py-3 text-center">
+                        <BmiBadge
+                          value={roundBmi(r.bmi)}
+                          color={band.color}
+                          label={band.label}
+                          explanation={band.explanation}
+                        />
                       </td>
                       <td className="px-4 py-3 text-slate-600">
                         {r.waistCm != null ? `${r.waistCm} cm` : "—"}
                       </td>
-                      <td className="px-4 py-3 text-slate-600">
+                      <td className="px-4 py-3 text-center text-slate-600">
                         {r.mood ?? "—"}
                       </td>
-                      <td className="px-4 py-3 text-slate-600">
+                      <td className="px-4 py-3 text-center text-slate-600">
                         {r.energy ?? "—"}
                       </td>
-                      <td className="px-4 py-3 text-slate-600">
+                      <td className="px-4 py-3 text-center text-slate-600">
                         {r.appetite ?? "—"}
                       </td>
-                      <td className="px-4 py-3 text-slate-600">
+                      <td className="px-4 py-3 text-center text-slate-600">
                         {r.mounjaroDoseMg != null
                           ? `${r.mounjaroDoseMg} mg`
                           : "—"}
