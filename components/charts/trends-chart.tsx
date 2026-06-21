@@ -458,7 +458,9 @@ export function TrendsChart({
               visible={trendsVisible}
               onToggle={toggleTrend}
             />
-            <ResponsiveContainer width="100%" height={340}>
+            <ResponsiveContainer
+              className="select-none [-webkit-tap-highlight-color:transparent]"
+              width="100%" height={340}>
               <ComposedChart
                 data={chartData}
                 margin={{ top: 5, right: 8, bottom: 5, left: -8 }}
@@ -611,7 +613,9 @@ export function TrendsChart({
               visible={wellbeingVisible}
               onToggle={toggleWellbeing}
             />
-            <ResponsiveContainer width="100%" height={240}>
+            <ResponsiveContainer
+              className="select-none [-webkit-tap-highlight-color:transparent]"
+              width="100%" height={240}>
               <ComposedChart
                 data={chartData}
                 margin={{ top: 5, right: 8, bottom: 5, left: -8 }}
@@ -734,7 +738,9 @@ export function TrendsChart({
               Hover a point for its category. Bands show the WHO healthy-weight
               ranges.
             </p>
-            <ResponsiveContainer width="100%" height={300}>
+            <ResponsiveContainer
+              className="select-none [-webkit-tap-highlight-color:transparent]"
+              width="100%" height={300}>
               <ComposedChart
                 data={chartData}
                 margin={{ top: 5, right: 8, bottom: 5, left: -8 }}
@@ -892,7 +898,7 @@ function TrendsTooltip({ active, label, payload }: TooltipProps) {
     const name = p.name ?? "";
     const key = String(p.dataKey ?? "");
     if (p.value == null || seen.has(name)) return false;
-    if (key.includes("Dotted") || key === "doseY") return false;
+    if (key.includes("Dotted") || key === "doseY" || key === "t") return false;
     seen.add(name);
     return true;
   });
