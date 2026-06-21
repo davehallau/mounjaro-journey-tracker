@@ -44,6 +44,7 @@ export type RecordingView = {
   mood: number | null;
   energy: number | null;
   appetite: number | null;
+  medication: string | null;
   mounjaroDoseMg: number | null;
   notes: string | null;
   bmi: number;
@@ -71,6 +72,7 @@ export async function getRecordings(
       mood: r.mood,
       energy: r.energy,
       appetite: r.appetite,
+      medication: r.medication,
       mounjaroDoseMg: num(r.mounjaroDoseMg),
       notes: r.notes,
       bmi: calcBmi(weight, heightCm),

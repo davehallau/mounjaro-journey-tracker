@@ -2,6 +2,7 @@ import Link from "next/link";
 import { format } from "date-fns";
 import { getActiveParticipant, getRecordings } from "@/lib/data";
 import { bmiBand, roundBmi } from "@/lib/bmi";
+import { medicationLabel } from "@/lib/medications";
 import { AddRecordingPanel } from "@/components/add-recording-panel";
 import { BmiBadge } from "@/components/bmi-badge";
 import { DeleteForm } from "@/components/delete-form";
@@ -82,7 +83,7 @@ export default async function RecordingsPage({
                   <th className="px-4 py-3 text-center">Mood</th>
                   <th className="px-4 py-3 text-center">Energy</th>
                   <th className="px-4 py-3 text-center">Appetite</th>
-                  <th className="px-4 py-3 text-center">Dose</th>
+                  <th className="px-4 py-3 text-center">Medication</th>
                   <th className="px-4 py-3">Notes</th>
                   <th className="px-4 py-3" />
                 </tr>
@@ -119,9 +120,13 @@ export default async function RecordingsPage({
                       <td className="px-4 py-3 text-center text-slate-600">
                         {r.appetite ?? "—"}
                       </td>
-                      <td className="px-4 py-3 text-center text-slate-600">
-                        {r.mounjaroDoseMg != null
-                          ? `${r.mounjaroDoseMg} mg`
+                      <td className="whitespace-nowrap px-4 py-3 text-center text-slate-600">
+                        {r.medication
+                          ? `${medicationLabel(r.medication)}${
+                              r.mounjaroDoseMg != null
+                                ? ` · ${r.mounjaroDoseMg} mg`
+                                : ""
+                            }`
                           : "—"}
                       </td>
                       <td className="max-w-[200px] truncate px-4 py-3 text-slate-500">

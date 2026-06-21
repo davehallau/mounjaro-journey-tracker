@@ -66,8 +66,8 @@ async function main() {
 
     await pool.query(
       `insert into recordings
-        (participant_id, recorded_on, weight_kg, waist_cm, mood, energy, appetite, mounjaro_dose_mg, notes)
-       values ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+        (participant_id, recorded_on, weight_kg, waist_cm, mood, energy, appetite, medication, mounjaro_dose_mg, notes)
+       values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
       [
         participantId,
         date,
@@ -76,6 +76,7 @@ async function main() {
         mood,
         energy,
         appetite,
+        "mounjaro",
         dose(i),
         noteFor(i),
       ],

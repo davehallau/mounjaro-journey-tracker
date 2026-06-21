@@ -14,6 +14,7 @@ import {
 } from "@/lib/validation";
 
 function toValues(input: RecordingInput) {
+  const medication = input.medication === "none" ? null : input.medication;
   return {
     recordedOn: input.recordedOn,
     weightKg: String(input.weightKg),
@@ -21,8 +22,12 @@ function toValues(input: RecordingInput) {
     mood: input.mood ?? null,
     energy: input.energy ?? null,
     appetite: input.appetite ?? null,
+    medication,
+    // Dose only applies when a medication is selected.
     mounjaroDoseMg:
-      input.mounjaroDoseMg != null ? String(input.mounjaroDoseMg) : null,
+      medication && input.mounjaroDoseMg != null
+        ? String(input.mounjaroDoseMg)
+        : null,
     notes: input.notes ?? null,
   };
 }

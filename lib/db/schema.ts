@@ -55,7 +55,8 @@ export const recordings = pgTable(
     mood: smallint("mood"), // 1..5
     energy: smallint("energy"), // 1..5
     appetite: smallint("appetite"), // 1..5
-    mounjaroDoseMg: numeric("mounjaro_dose_mg", { precision: 4, scale: 1 }),
+    medication: text("medication"), // null = none; e.g. mounjaro | wegovy | ...
+    mounjaroDoseMg: numeric("mounjaro_dose_mg", { precision: 4, scale: 1 }), // dose in mg
     notes: text("notes"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()

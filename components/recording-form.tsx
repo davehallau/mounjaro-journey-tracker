@@ -5,13 +5,9 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { PrettySelect } from "@/components/pretty-select";
 import { DatePicker } from "@/components/date-picker";
+import { MedicationFields } from "@/components/medication-fields";
 import { appetiteColor, scaleColor } from "@/lib/scale-colors";
-import {
-  DOSES,
-  EMPTY_FORM_STATE,
-  SCALE_LABELS,
-  type FormState,
-} from "@/lib/validation";
+import { EMPTY_FORM_STATE, SCALE_LABELS, type FormState } from "@/lib/validation";
 
 type Action = (state: FormState, formData: FormData) => Promise<FormState>;
 
@@ -22,6 +18,7 @@ type RecordingDefaults = {
   mood?: number | null;
   energy?: number | null;
   appetite?: number | null;
+  medication?: string | null;
   mounjaroDoseMg?: string | number | null;
   notes?: string | null;
 };
@@ -89,10 +86,6 @@ export function RecordingForm({
   const defaults = recording ?? latest ?? null;
   // The date always defaults to today for a new entry (never the latest's date).
   const dateDefault = recording?.recordedOn ?? defaultDate;
-  const doseDefault =
-    defaults?.mounjaroDoseMg != null
-      ? String(Number(defaults.mounjaroDoseMg))
-      : "none";
 
   // Warn before adding a new recording identical to the latest (date aside).
   const formRef = useRef<HTMLFormElement>(null);
@@ -111,6 +104,7 @@ export function RecordingForm({
       const n = Number(v);
       return Number.isNaN(n) ? String(v) : String(n);
     };
+    const med = (v: unknown) => (v == null || v === "" ? "none" : String(v));
     // Notes aren't pre-filled, so they're excluded from the duplicate check.
     const same =
       num(fd.get("weightKg")) === num(latest.weightKg) &&
@@ -118,6 +112,7 @@ export function RecordingForm({
       num(fd.get("mood")) === num(latest.mood) &&
       num(fd.get("energy")) === num(latest.energy) &&
       num(fd.get("appetite")) === num(latest.appetite) &&
+      med(fd.get("medication")) === med(latest.medication) &&
       num(fd.get("mounjaroDoseMg")) === num(latest.mounjaroDoseMg);
     if (same) {
       e.preventDefault();
@@ -190,7 +185,7 @@ export function RecordingForm({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
         <ScaleSelect
           name="mood"
           label="Mood"
@@ -210,24 +205,20 @@ export function RecordingForm({
           defaultValue={defaults?.appetite}
           colorFor={appetiteColor}
         />
-        <div>
-          <label className="label" htmlFor="mounjaroDoseMg">
-            Mounjaro dose
-          </label>
-          <PrettySelect
-            id="mounjaroDoseMg"
-            name="mounjaroDoseMg"
-            ariaLabel="Mounjaro dose"
-            defaultValue={doseDefault}
-            options={[
-              { value: "none", label: "None" },
-              ...DOSES.map((d) => ({ value: String(d), label: `${d} mg` })),
-            ]}
-          />
-          {err.mounjaroDoseMg && (
-            <p className="field-error">{err.mounjaroDoseMg}</p>
-          )}
-        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <MedicationFields
+          defaultMedication={defaults?.medication ?? null}
+          defaultDose={
+            defaults?.mounjaroDoseMg != null
+              ? Number(defaults.mounjaroDoseMg)
+              : null
+          }
+        />
+        {err.mounjaroDoseMg && (
+          <p className="field-error col-span-2">{err.mounjaroDoseMg}</p>
+        )}
       </div>
 
       <div>

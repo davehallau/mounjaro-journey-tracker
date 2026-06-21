@@ -29,6 +29,13 @@
       "when": 1782042855914,
       "tag": "0003_useful_stick",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1782044397899,
+      "tag": "0004_grey_molten_man",
+      "breakpoints": true
     }
   ]
 }

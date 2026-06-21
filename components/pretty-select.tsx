@@ -13,15 +13,25 @@ export function PrettySelect({
   name,
   options,
   defaultValue = "",
+  value: controlledValue,
+  onChange,
   ariaLabel,
 }: {
   id?: string;
-  name: string;
+  name?: string;
   options: SelectOption[];
   defaultValue?: string;
+  value?: string;
+  onChange?: (value: string) => void;
   ariaLabel?: string;
 }) {
-  const [value, setValue] = useState(defaultValue);
+  const [internal, setInternal] = useState(defaultValue);
+  const value = controlledValue ?? internal;
+  const choose = (v: string) => {
+    if (controlledValue === undefined) setInternal(v);
+    onChange?.(v);
+    setOpen(false);
+  };
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -47,7 +57,7 @@ export function PrettySelect({
 
   return (
     <div ref={ref} className="relative">
-      <input type="hidden" name={name} value={value} />
+      {name && <input type="hidden" name={name} value={value} />}
       <button
         id={id}
         type="button"
@@ -97,10 +107,7 @@ export function PrettySelect({
                   type="button"
                   role="option"
                   aria-selected={sel}
-                  onClick={() => {
-                    setValue(o.value);
-                    setOpen(false);
-                  }}
+                  onClick={() => choose(o.value)}
                   className={`flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left text-sm transition ${
                     sel
                       ? "bg-emerald-50 font-medium text-emerald-700"

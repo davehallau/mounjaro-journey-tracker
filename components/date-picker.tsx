@@ -3,18 +3,24 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   addMonths,
+  addYears,
   eachDayOfInterval,
   endOfMonth,
   endOfWeek,
   format,
+  getMonth,
+  getYear,
   isAfter,
   isBefore,
   isSameDay,
   isSameMonth,
   parseISO,
+  setMonth,
+  setYear,
   startOfMonth,
   startOfWeek,
   subMonths,
+  subYears,
 } from "date-fns";
 
 const WEEKDAYS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
@@ -52,6 +58,7 @@ export function DatePicker({
 
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<Date>(selected ?? new Date());
+  const [mode, setMode] = useState<"days" | "months" | "years">("days");
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -90,9 +97,14 @@ export function DatePicker({
       setOpen(false);
     } else {
       setView(selected ?? new Date());
+      setMode("days");
       setOpen(true);
     }
   };
+
+  const yearsStart = getYear(view) - (getYear(view) % 12);
+  const minYear = minDate ? getYear(minDate) : -Infinity;
+  const maxYear = maxDate ? getYear(maxDate) : Infinity;
 
   const choose = (d: string) => {
     if (controlledValue === undefined) setUncontrolled(d);
@@ -134,59 +146,157 @@ export function DatePicker({
           <div className="mb-2 flex items-center justify-between">
             <button
               type="button"
-              onClick={() => setView(subMonths(view, 1))}
-              aria-label="Previous month"
+              onClick={() =>
+                setView(
+                  mode === "days"
+                    ? subMonths(view, 1)
+                    : mode === "months"
+                      ? subYears(view, 1)
+                      : subYears(view, 12),
+                )
+              }
+              aria-label="Previous"
               className="rounded-md p-1.5 text-slate-500 transition hover:bg-slate-100"
             >
               <Chevron dir="left" />
             </button>
-            <span className="text-sm font-semibold text-slate-700">
-              {format(view, "MMMM yyyy")}
-            </span>
             <button
               type="button"
-              onClick={() => setView(addMonths(view, 1))}
-              aria-label="Next month"
+              onClick={() =>
+                setMode(
+                  mode === "days"
+                    ? "months"
+                    : mode === "months"
+                      ? "years"
+                      : "days",
+                )
+              }
+              className="rounded-md px-2 py-1 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+            >
+              {mode === "days"
+                ? format(view, "MMMM yyyy")
+                : mode === "months"
+                  ? format(view, "yyyy")
+                  : `${yearsStart}–${yearsStart + 11}`}
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                setView(
+                  mode === "days"
+                    ? addMonths(view, 1)
+                    : mode === "months"
+                      ? addYears(view, 1)
+                      : addYears(view, 12),
+                )
+              }
+              aria-label="Next"
               className="rounded-md p-1.5 text-slate-500 transition hover:bg-slate-100"
             >
               <Chevron dir="right" />
             </button>
           </div>
 
-          <div className="grid grid-cols-7 gap-0.5 text-center text-xs text-slate-400">
-            {WEEKDAYS.map((d) => (
-              <div key={d} className="py-1">
-                {d}
+          {mode === "days" && (
+            <>
+              <div className="grid grid-cols-7 gap-0.5 text-center text-xs text-slate-400">
+                {WEEKDAYS.map((d) => (
+                  <div key={d} className="py-1">
+                    {d}
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-          <div className="grid grid-cols-7 gap-0.5">
-            {days.map((d) => {
-              const sel = selected != null && isSameDay(d, selected);
-              const today = isSameDay(d, new Date());
-              const outside = !isSameMonth(d, view);
-              const dis = isDisabled(d);
-              return (
-                <button
-                  key={d.toISOString()}
-                  type="button"
-                  disabled={dis}
-                  onClick={() => choose(format(d, "yyyy-MM-dd"))}
-                  className={`h-8 rounded-md text-sm transition ${
-                    sel
-                      ? "bg-emerald-600 font-medium text-white"
-                      : dis
-                        ? "cursor-not-allowed text-slate-300"
-                        : outside
-                          ? "text-slate-400 hover:bg-slate-100"
+              <div className="grid grid-cols-7 gap-0.5">
+                {days.map((d) => {
+                  const sel = selected != null && isSameDay(d, selected);
+                  const today = isSameDay(d, new Date());
+                  const outside = !isSameMonth(d, view);
+                  const dis = isDisabled(d);
+                  return (
+                    <button
+                      key={d.toISOString()}
+                      type="button"
+                      disabled={dis}
+                      onClick={() => choose(format(d, "yyyy-MM-dd"))}
+                      className={`h-8 rounded-md text-sm transition ${
+                        sel
+                          ? "bg-emerald-600 font-medium text-white"
+                          : dis
+                            ? "cursor-not-allowed text-slate-300"
+                            : outside
+                              ? "text-slate-400 hover:bg-slate-100"
+                              : "text-slate-700 hover:bg-slate-100"
+                      } ${today && !sel ? "ring-1 ring-emerald-400" : ""}`}
+                    >
+                      {format(d, "d")}
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
+
+          {mode === "months" && (
+            <div className="grid grid-cols-3 gap-1">
+              {Array.from({ length: 12 }, (_, m) => m).map((m) => {
+                const sel =
+                  selected != null &&
+                  getYear(selected) === getYear(view) &&
+                  getMonth(selected) === m;
+                const dis =
+                  getYear(view) < minYear || getYear(view) > maxYear;
+                return (
+                  <button
+                    key={m}
+                    type="button"
+                    disabled={dis}
+                    onClick={() => {
+                      setView(setMonth(view, m));
+                      setMode("days");
+                    }}
+                    className={`h-9 rounded-md text-sm transition ${
+                      sel
+                        ? "bg-emerald-600 font-medium text-white"
+                        : dis
+                          ? "cursor-not-allowed text-slate-300"
                           : "text-slate-700 hover:bg-slate-100"
-                  } ${today && !sel ? "ring-1 ring-emerald-400" : ""}`}
-                >
-                  {format(d, "d")}
-                </button>
-              );
-            })}
-          </div>
+                    }`}
+                  >
+                    {format(setMonth(view, m), "MMM")}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {mode === "years" && (
+            <div className="grid grid-cols-3 gap-1">
+              {Array.from({ length: 12 }, (_, i) => yearsStart + i).map((y) => {
+                const sel = selected != null && getYear(selected) === y;
+                const dis = y < minYear || y > maxYear;
+                return (
+                  <button
+                    key={y}
+                    type="button"
+                    disabled={dis}
+                    onClick={() => {
+                      setView(setYear(view, y));
+                      setMode("months");
+                    }}
+                    className={`h-9 rounded-md text-sm transition ${
+                      sel
+                        ? "bg-emerald-600 font-medium text-white"
+                        : dis
+                          ? "cursor-not-allowed text-slate-300"
+                          : "text-slate-700 hover:bg-slate-100"
+                    }`}
+                  >
+                    {y}
+                  </button>
+                );
+              })}
+            </div>
+          )}
 
           <div className="mt-2 flex items-center justify-between">
             <button
