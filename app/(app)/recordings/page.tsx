@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { format } from "date-fns";
 import { getActiveParticipant, getDoses, getRecordings } from "@/lib/data";
 import { bmiBand, roundBmi } from "@/lib/bmi";
@@ -6,6 +7,7 @@ import { medicationLabel } from "@/lib/medications";
 import { AddRecordingPanel } from "@/components/add-recording-panel";
 import { AddDosePanel } from "@/components/add-dose-panel";
 import { BmiBadge } from "@/components/bmi-badge";
+import { CollapsibleSection } from "@/components/collapsible-section";
 import { DeleteForm } from "@/components/delete-form";
 import {
   createDose,
@@ -28,6 +30,9 @@ export default async function RecordingsPage({
 }) {
   const active = await getActiveParticipant();
   const sp = await searchParams;
+  const c = await cookies();
+  const dosesOpen = c.get("sec_doses")?.value !== "0";
+  const bodyOpen = c.get("sec_body")?.value !== "0";
 
   if (!active) {
     return (
@@ -88,10 +93,11 @@ export default async function RecordingsPage({
       )}
 
       {/* Doses */}
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-          Doses ({doseRows.length})
-        </h2>
+      <CollapsibleSection
+        id="doses"
+        title={`Doses (${doseRows.length})`}
+        defaultOpen={dosesOpen}
+      >
         {doseRows.length === 0 ? (
           <div className="card text-sm text-slate-500">No doses recorded.</div>
         ) : (
@@ -148,13 +154,14 @@ export default async function RecordingsPage({
             </table>
           </div>
         )}
-      </section>
+      </CollapsibleSection>
 
       {/* Body & health */}
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-          Body &amp; health ({bodyRows.length})
-        </h2>
+      <CollapsibleSection
+        id="body"
+        title={`Body & health (${bodyRows.length})`}
+        defaultOpen={bodyOpen}
+      >
         {bodyRows.length === 0 ? (
           <div className="card text-sm text-slate-500">
             No body &amp; health data recorded.
@@ -241,7 +248,7 @@ export default async function RecordingsPage({
             </table>
           </div>
         )}
-      </section>
+      </CollapsibleSection>
     </div>
   );
 }

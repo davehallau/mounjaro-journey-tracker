@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { getActiveParticipant, getDoses, getRecordings } from "@/lib/data";
 import { bmiBand, roundBmi } from "@/lib/bmi";
 import { medicationLabel } from "@/lib/medications";
+import { AddRecordMenu } from "@/components/add-record-menu";
 import { TrendsChart, type RangeState } from "@/components/charts/trends-chart";
 
 async function readRange(): Promise<RangeState | undefined> {
@@ -99,11 +100,7 @@ export default async function DashboardPage() {
             </span>
           )}
         </h1>
-        {isOwner && (
-          <Link href="/recordings?new=1" className="btn-primary">
-            + Add recording
-          </Link>
-        )}
+        {isOwner && <AddRecordMenu />}
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">

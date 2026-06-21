@@ -152,21 +152,41 @@ export function TrendsChart({
   const recsInRange = data.filter((d) => inRange(d.recordedOn));
   const dosesInRange = doses.filter((d) => inRange(d.recordedOn));
 
-  const chartData = recsInRange.map((r) => ({
-    recordedOn: r.recordedOn,
-    t: ts(r.recordedOn),
-    weightKg: r.weightKg as number | null,
-    waistCm: r.waistCm,
-    mood: r.mood,
-    energy: r.energy,
-    appetite: r.appetite,
-    bmi: roundBmi(r.bmi),
-    // Dotted companions bridge interior gaps in optional fields (filled below).
-    waistCmDotted: null as number | null,
-    moodDotted: null as number | null,
-    energyDotted: null as number | null,
-    appetiteDotted: null as number | null,
-  }));
+  // The dose in effect on a body date = the most recent dose on/before it, but
+  // only if administered within the last 10 days (else treated as lapsed).
+  const TEN_DAYS = 10 * 24 * 60 * 60 * 1000;
+  const activeDoseAt = (rowT: number): DoseView | null => {
+    let active: DoseView | null = null;
+    for (const d of doses) {
+      if (ts(d.recordedOn) <= rowT) active = d;
+      else break;
+    }
+    return active && rowT - ts(active.recordedOn) < TEN_DAYS ? active : null;
+  };
+
+  const chartData = recsInRange.map((r) => {
+    const rowT = ts(r.recordedOn);
+    const active = activeDoseAt(rowT);
+    return {
+      recordedOn: r.recordedOn,
+      t: rowT,
+      weightKg: r.weightKg as number | null,
+      waistCm: r.waistCm,
+      mood: r.mood,
+      energy: r.energy,
+      appetite: r.appetite,
+      bmi: roundBmi(r.bmi),
+      // Carried-forward dose (for the tooltip on between-dose body readings).
+      activeMed: active?.medication ?? null,
+      activeMg: active?.doseMg ?? null,
+      activeDoseDate: active?.recordedOn ?? null,
+      // Dotted companions bridge interior gaps in optional fields (filled below).
+      waistCmDotted: null as number | null,
+      moodDotted: null as number | null,
+      energyDotted: null as number | null,
+      appetiteDotted: null as number | null,
+    };
+  });
 
   for (const key of ["waistCm", "mood", "energy", "appetite"] as const) {
     const dottedKey = `${key}Dotted` as const;
@@ -885,7 +905,14 @@ type TooltipProps = {
     value?: number;
     color?: string;
     dataKey?: string | number;
-    payload?: { t?: number; medication?: string | null; doseMg?: number | null };
+    payload?: {
+      t?: number;
+      medication?: string | null;
+      doseMg?: number | null;
+      activeMed?: string | null;
+      activeMg?: number | null;
+      activeDoseDate?: string | null;
+    };
   }>;
 };
 
@@ -905,9 +932,13 @@ function TrendsTooltip({ active, label, payload }: TooltipProps) {
     seen.add(name);
     return true;
   });
-  const dose = here.find((p) => p.payload?.medication != null)?.payload;
-  const hasDose = dose?.medication != null;
-  if (!items.length && !hasDose) return null;
+  // A dose administered on this exact date (needle), else the dose carried
+  // forward from a recent administration (shown on between-dose body readings).
+  const administered = here.find((p) => p.payload?.medication != null)?.payload;
+  const carried = here.find((p) => p.payload?.activeMed != null)?.payload;
+  const showAdministered = administered?.medication != null;
+  const showCarried = !showAdministered && carried?.activeMed != null;
+  if (!items.length && !showAdministered && !showCarried) return null;
   return (
     <div className="rounded-lg border border-slate-200 bg-white p-3 text-xs shadow-md">
       <p className="mb-1 font-semibold text-slate-700">
@@ -924,14 +955,28 @@ function TrendsTooltip({ active, label, payload }: TooltipProps) {
             <span className="font-medium text-slate-800">{p.value}</span>
           </li>
         ))}
-        {hasDose && (
+        {showAdministered && (
           <li className="flex items-center gap-1.5">
             <span aria-hidden="true">💉</span>
             <span className="text-slate-500">Dose:</span>
             <span className="font-medium text-slate-800">
-              {medicationLabel(dose?.medication)}
-              {dose?.doseMg != null ? ` ${dose.doseMg} mg` : ""}
+              {medicationLabel(administered?.medication)}
+              {administered?.doseMg != null ? ` ${administered.doseMg} mg` : ""}
             </span>
+          </li>
+        )}
+        {showCarried && (
+          <li className="flex items-center gap-1.5">
+            <span className="text-slate-500">Dose:</span>
+            <span className="font-medium text-slate-800">
+              {medicationLabel(carried?.activeMed)}
+              {carried?.activeMg != null ? ` ${carried.activeMg} mg` : ""}
+            </span>
+            {carried?.activeDoseDate && (
+              <span className="text-slate-400">
+                · last {format(new Date(carried.activeDoseDate), "d MMM")}
+              </span>
+            )}
           </li>
         )}
       </ul>
