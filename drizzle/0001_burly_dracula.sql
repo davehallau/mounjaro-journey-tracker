@@ -1,0 +1,1 @@
+ALTER TABLE "participants" ADD COLUMN "target_bmi" numeric(4, 1);

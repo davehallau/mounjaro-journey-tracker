@@ -1,0 +1,17 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: weight-tracker-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: weight
+      POSTGRES_PASSWORD: weight
+      POSTGRES_DB: weight_tracker
+    ports:
+      # Host 5433 -> container 5432, to avoid clashing with any local Postgres on 5432
+      - "5433:5432"
+    volumes:
+      - weight_tracker_pgdata:/var/lib/postgresql/data
+
+volumes:
+  weight_tracker_pgdata:

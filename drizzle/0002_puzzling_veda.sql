@@ -1,0 +1,2 @@
+ALTER TABLE "recordings" DROP CONSTRAINT "mood_range";--> statement-breakpoint
+ALTER TABLE "recordings" ADD CONSTRAINT "mood_range" CHECK ("recordings"."mood" is null or "recordings"."mood" between 1 and 7);

@@ -1,36 +1,94 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Weight Tracker
 
-## Getting Started
+A small, mobile-responsive web app to track a Mounjaro (tirzepatide) weight-loss
+journey — weight, waist, mood/energy/appetite, dose, and BMI over time, with
+overlaid graphs and a date-range picker.
 
-First, run the development server:
+- **Functional requirements:** [`docs/functional-requirements.md`](docs/functional-requirements.md)
+- **Technical design:** [`docs/technical-design.md`](docs/technical-design.md)
+
+## Stack
+
+Next.js 16 (App Router) + TypeScript · Tailwind v4 · Auth.js (password) ·
+Postgres + Drizzle ORM (the `pg` driver runs against local Docker **and** Neon) ·
+Recharts · deploys to Vercel. All on free tiers.
+
+---
+
+## Run locally (offline, with Docker)
+
+The fastest way to try it. Requires **Node 20+** and **Docker**.
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+cp .env.example .env.local      # defaults already point at the local Docker DB
+                                 # (set AUTH_SECRET: openssl rand -base64 32)
+
+npm run db:up                    # start local Postgres (docker-compose, port 5433)
+npm run db:migrate               # create the tables
+npm run seed:user                # create your login from SEED_* in .env.local
+npm run seed:demo                # OPTIONAL: load ~4 months of sample data
+
+npm run dev                      # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Log in with the `SEED_USERNAME` / `SEED_PASSWORD` from your `.env.local`.
+If you ran `seed:demo`, the **"Alex (demo)"** participant will already have data
+to explore on the dashboard.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+> A generated `.env.local` is already present from setup; `.env.example` documents
+> every variable. Stop the DB with `npm run db:down` (data persists in a volume).
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Prefer no Docker?
 
-## Learn More
+Point `DATABASE_URL` in `.env.local` at any Postgres — including a free **Neon**
+database (https://neon.tech) — and run the same `db:migrate` / `seed:*` / `dev`
+steps. No code changes needed.
 
-To learn more about Next.js, take a look at the following resources:
+---
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Deploy to Vercel (no Git required)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+1. Sign up for **Neon** (https://neon.tech) and **Vercel** (https://vercel.com),
+   then install the CLI: `npm i -g vercel`.
+2. In Neon, create a project and copy the **pooled** connection string.
+3. Log in and deploy from this folder:
+   ```bash
+   vercel login
+   vercel            # first run links/creates the project
+   vercel --prod     # promote to production
+   ```
+4. Set production env vars (Vercel dashboard → Project → Settings → Environment
+   Variables): `DATABASE_URL` (Neon), `AUTH_SECRET` (`openssl rand -base64 32`),
+   and `AUTH_URL` (your `*.vercel.app` URL). Redeploy after setting them.
+5. Create the tables and your login against the production DB (point a local
+   `DATABASE_URL` at Neon for these one-off commands):
+   ```bash
+   npm run db:migrate
+   npm run seed:user
+   ```
 
-## Deploy on Vercel
+> Tip: Neon's free tier auto-resumes on access, so there's nothing to "unpause"
+> when you return to the app after a few days.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+---
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Scripts
+
+| Command | Purpose |
+|---------|---------|
+| `npm run dev` | Local dev server |
+| `npm run build` / `npm start` | Production build / serve |
+| `npm run db:up` / `db:down` | Start / stop the local Postgres container |
+| `npm run db:generate` | Generate a Drizzle migration from the schema |
+| `npm run db:migrate` | Apply migrations to `DATABASE_URL` |
+| `npm run db:studio` | Open Drizzle Studio (browse the DB) |
+| `npm run seed:user` | Create/update the login from `SEED_*` env vars |
+| `npm run seed:demo` | Load ~4 months of sample data for one participant |
+
+---
+
+## Roadmap
+
+See the "nice-to-have / later" section in the functional requirements: passkey
+login, CSV export, and a goal-weight line.
