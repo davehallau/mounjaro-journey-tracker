@@ -14,3 +14,16 @@ export const SCALE_COLORS = [
 
 export const scaleColor = (value: number) =>
   SCALE_COLORS[Math.min(6, Math.max(0, Math.round(value) - 1))];
+
+// Appetite is a "middle is best" scale on Mounjaro: 3 (normal) is good (green),
+// the extremes 1 (suppressed) and 5 (very hungry) are bad (red), 2/4 amber.
+const APPETITE_COLORS = [
+  "#b91c1c", // 1 — suppressed (bad)
+  "#f59e0b", // 2 — amber
+  "#22c55e", // 3 — normal (good)
+  "#f59e0b", // 4 — amber
+  "#b91c1c", // 5 — very hungry (bad)
+];
+
+export const appetiteColor = (value: number) =>
+  APPETITE_COLORS[Math.min(4, Math.max(0, Math.round(value) - 1))];

@@ -3,7 +3,7 @@
 import { useActionState } from "react";
 import Link from "next/link";
 import { PrettySelect } from "@/components/pretty-select";
-import { scaleColor } from "@/lib/scale-colors";
+import { appetiteColor, scaleColor } from "@/lib/scale-colors";
 import {
   DOSES,
   EMPTY_FORM_STATE,
@@ -29,11 +29,13 @@ function ScaleSelect({
   label,
   options,
   defaultValue,
+  colorFor = scaleColor,
 }: {
   name: string;
   label: string;
   options: readonly string[];
   defaultValue?: number | null;
+  colorFor?: (value: number) => string;
 }) {
   return (
     <div>
@@ -50,7 +52,7 @@ function ScaleSelect({
           ...options.map((opt, i) => ({
             value: String(i + 1),
             label: opt,
-            color: scaleColor(i + 1),
+            color: colorFor(i + 1),
           })),
         ]}
       />
@@ -153,6 +155,7 @@ export function RecordingForm({
           label="Appetite"
           options={SCALE_LABELS.appetite}
           defaultValue={recording?.appetite}
+          colorFor={appetiteColor}
         />
         <div>
           <label className="label" htmlFor="mounjaroDoseMg">
