@@ -41,6 +41,7 @@ export function DatePicker({
   max,
   ariaLabel,
   placeholder = "Select date",
+  openTo = "days",
 }: {
   id?: string;
   name?: string;
@@ -51,6 +52,8 @@ export function DatePicker({
   max?: string;
   ariaLabel?: string;
   placeholder?: string;
+  /** View to open on when the field is blank (e.g. "years" for a DOB). */
+  openTo?: "days" | "months" | "years";
 }) {
   const [uncontrolled, setUncontrolled] = useState(defaultValue);
   const value = controlledValue ?? uncontrolled;
@@ -97,7 +100,9 @@ export function DatePicker({
       setOpen(false);
     } else {
       setView(selected ?? new Date());
-      setMode("days");
+      // With a value, open on the day grid; blank fields honour openTo so a
+      // DOB can start at the decade grid.
+      setMode(selected ? "days" : openTo);
       setOpen(true);
     }
   };

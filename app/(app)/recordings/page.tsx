@@ -83,7 +83,9 @@ export default async function RecordingsPage({
             <table className="w-full min-w-[760px] text-sm">
               <thead>
                 <tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500">
-                  <th className="px-4 py-3">Date</th>
+                  <th className="sticky left-0 z-10 border-r border-slate-100 bg-white px-4 py-3">
+                    Date
+                  </th>
                   <th className="px-4 py-3">Weight</th>
                   <th className="px-4 py-3 text-center">BMI</th>
                   <th className="px-4 py-3">Waist</th>
@@ -103,7 +105,7 @@ export default async function RecordingsPage({
                       key={r.id}
                       className="border-b border-slate-100 last:border-0"
                     >
-                      <td className="whitespace-nowrap px-4 py-3 font-medium text-slate-700">
+                      <td className="sticky left-0 z-10 border-r border-slate-100 bg-white px-4 py-3 font-medium whitespace-nowrap text-slate-700">
                         {format(new Date(r.recordedOn), "d MMM yyyy")}
                       </td>
                       <td className="px-4 py-3">{r.weightKg} kg</td>
@@ -141,18 +143,21 @@ export default async function RecordingsPage({
                       </td>
                       {isOwner && (
                         <td className="whitespace-nowrap px-4 py-3">
-                          <div className="flex items-center justify-end gap-2">
+                          <div className="flex items-center justify-end gap-1">
                             <Link
                               href={`/recordings/${r.id}`}
-                              className="text-emerald-700 hover:underline"
+                              title="Edit"
+                              aria-label="Edit"
+                              className="rounded-md p-1.5 text-emerald-700 transition hover:bg-emerald-50"
                             >
-                              Edit
+                              <PencilIcon />
                             </Link>
                             <DeleteForm
                               action={deleteRecording}
                               id={r.id}
                               label="Delete"
-                              className="text-red-600 hover:underline"
+                              trigger={<TrashIcon />}
+                              className="rounded-md p-1.5 text-red-600 transition hover:bg-red-50"
                               confirmMessage="Delete this recording?"
                             />
                           </div>
@@ -167,5 +172,25 @@ export default async function RecordingsPage({
         )}
       </section>
     </div>
+  );
+}
+
+function PencilIcon() {
+  return (
+    <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4" aria-hidden="true">
+      <path d="M13.586 3.586a2 2 0 112.828 2.828l-8.5 8.5a2 2 0 01-.879.515l-3 .857a.5.5 0 01-.617-.617l.857-3a2 2 0 01.515-.879l8.5-8.5z" />
+    </svg>
+  );
+}
+
+function TrashIcon() {
+  return (
+    <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4" aria-hidden="true">
+      <path
+        fillRule="evenodd"
+        d="M8.75 1a1 1 0 00-.95.68L7.4 3H4a1 1 0 000 2h12a1 1 0 100-2h-3.4l-.4-1.32A1 1 0 0011.25 1h-2.5zM5.06 7l.74 9.13A2 2 0 007.79 18h4.42a2 2 0 001.99-1.87L14.94 7H5.06z"
+        clipRule="evenodd"
+      />
+    </svg>
   );
 }

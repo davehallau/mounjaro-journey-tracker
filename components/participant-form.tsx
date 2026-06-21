@@ -56,6 +56,7 @@ export function ParticipantForm({
             defaultValue={participant?.dob ?? ""}
             max={today}
             placeholder="Select date"
+            openTo="years"
           />
           {err.dob && <p className="field-error">{err.dob}</p>}
         </div>

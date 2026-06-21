@@ -12,16 +12,22 @@ async function send(to: string, subject: string, html: string) {
     return;
   }
   const from = process.env.EMAIL_FROM ?? "Mounjaro Tracker <onboarding@resend.dev>";
-  const res = await fetch(RESEND_ENDPOINT, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${key}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ from, to, subject, html }),
-  });
-  if (!res.ok) {
-    throw new Error(`Email send failed (${res.status}): ${await res.text()}`);
+  // Best-effort: a send failure (e.g. unverified domain) must not crash the
+  // calling action. Log and move on.
+  try {
+    const res = await fetch(RESEND_ENDPOINT, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${key}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ from, to, subject, html }),
+    });
+    if (!res.ok) {
+      console.error(`Email send failed (${res.status}): ${await res.text()}`);
+    }
+  } catch (err) {
+    console.error("Email send error:", err);
   }
 }
 

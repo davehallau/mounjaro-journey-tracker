@@ -43,7 +43,7 @@ export default async function EditParticipantPage({
         />
       </div>
 
-      <div className="card">
+      <div id="sharing" className="card scroll-mt-20">
         <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-slate-500">
           Sharing
         </h2>

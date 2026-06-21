@@ -9,12 +9,15 @@ export function DeleteForm({
   action,
   id,
   label = "Delete",
+  trigger,
   confirmMessage = "Are you sure? This can't be undone.",
   className = "btn-danger",
 }: {
   action: Action;
   id: string;
   label?: string;
+  /** Custom trigger content (e.g. an icon); falls back to the label text. */
+  trigger?: React.ReactNode;
   confirmMessage?: string;
   className?: string;
 }) {
@@ -31,8 +34,14 @@ export function DeleteForm({
 
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} className={className}>
-        {label}
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className={className}
+        title={label}
+        aria-label={label}
+      >
+        {trigger ?? label}
       </button>
 
       {open &&

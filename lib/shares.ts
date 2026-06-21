@@ -56,6 +56,24 @@ export async function listSharesForParticipant(
   }));
 }
 
+/** Accepted/pending share counts per participant, for an owner's list view. */
+export async function shareCountsForOwner(
+  ownerUserId: string,
+): Promise<Record<string, { accepted: number; pending: number }>> {
+  const rows = await db
+    .select({ participantId: shares.participantId, status: shares.status })
+    .from(shares)
+    .innerJoin(participants, eq(shares.participantId, participants.id))
+    .where(eq(participants.ownerUserId, ownerUserId));
+  const map: Record<string, { accepted: number; pending: number }> = {};
+  for (const r of rows) {
+    const m = (map[r.participantId] ??= { accepted: 0, pending: 0 });
+    if (r.status === "accepted") m.accepted += 1;
+    else m.pending += 1;
+  }
+  return map;
+}
+
 /** Create a pending share, or update field flags on an existing one. */
 export async function createOrUpdateShare(
   participantId: string,
