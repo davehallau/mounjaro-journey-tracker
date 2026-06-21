@@ -94,16 +94,28 @@ const curveRounded: CurveFactory = (context) => {
   };
 };
 
+export type RangeState = { preset: number | "all"; from: string; to: string };
+
 export function TrendsChart({
   data,
   targetBmi,
+  initialRange,
 }: {
   data: RecordingView[];
   targetBmi?: number | null;
+  initialRange?: RangeState;
 }) {
-  const [preset, setPreset] = useState<number | "all">("all");
-  const [from, setFrom] = useState("");
-  const [to, setTo] = useState("");
+  const [preset, setPreset] = useState<number | "all">(
+    initialRange?.preset ?? "all",
+  );
+  const [from, setFrom] = useState(initialRange?.from ?? "");
+  const [to, setTo] = useState(initialRange?.to ?? "");
+
+  // Remember the chosen range across visits (read server-side into initialRange).
+  useEffect(() => {
+    const value = encodeURIComponent(JSON.stringify({ preset, from, to }));
+    document.cookie = `dash_range=${value}; path=/; max-age=${60 * 60 * 24 * 365}; samesite=lax`;
+  }, [preset, from, to]);
   // Two independent visibility maps, one per chart.
   const [trendsVisible, setTrendsVisible] = useState<Record<string, boolean>>(
     Object.fromEntries(TREND_SERIES.map((s) => [s.key, s.key !== "bmi"])),
@@ -287,13 +299,13 @@ export function TrendsChart({
     <div className="space-y-5">
       {/* Date range — applies to every chart */}
       <div className="card">
-        <div ref={rangeRef} className="relative inline-block">
+        <div ref={rangeRef} className="relative">
           <button
             type="button"
             onClick={() => setRangeOpen((o) => !o)}
             aria-haspopup="dialog"
             aria-expanded={rangeOpen}
-            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"
+            className="flex w-full items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"
           >
             <svg
               viewBox="0 0 20 20"
@@ -307,11 +319,11 @@ export function TrendsChart({
                 clipRule="evenodd"
               />
             </svg>
-            <span>{rangeLabel}</span>
+            <span className="flex-1 text-left">{rangeLabel}</span>
             <svg
               viewBox="0 0 20 20"
               fill="currentColor"
-              className={`h-4 w-4 text-slate-400 transition-transform ${
+              className={`h-4 w-4 shrink-0 text-slate-400 transition-transform ${
                 rangeOpen ? "rotate-180" : ""
               }`}
               aria-hidden="true"

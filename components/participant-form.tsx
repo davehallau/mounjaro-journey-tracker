@@ -5,6 +5,7 @@ import Link from "next/link";
 import { format } from "date-fns";
 import type { Participant } from "@/lib/db/schema";
 import { DatePicker } from "@/components/date-picker";
+import { PrettySelect } from "@/components/pretty-select";
 import {
   EMPTY_FORM_STATE,
   GENDERS,
@@ -63,18 +64,13 @@ export function ParticipantForm({
           <label className="label" htmlFor="gender">
             Gender
           </label>
-          <select
+          <PrettySelect
             id="gender"
             name="gender"
+            ariaLabel="Gender"
             defaultValue={participant?.gender ?? "undisclosed"}
-            className="input"
-          >
-            {GENDERS.map((g) => (
-              <option key={g} value={g}>
-                {GENDER_LABELS[g]}
-              </option>
-            ))}
-          </select>
+            options={GENDERS.map((g) => ({ value: g, label: GENDER_LABELS[g] }))}
+          />
           {err.gender && <p className="field-error">{err.gender}</p>}
         </div>
       </div>
@@ -88,6 +84,7 @@ export function ParticipantForm({
             id="heightCm"
             name="heightCm"
             type="number"
+            inputMode="decimal"
             step="0.1"
             min="50"
             max="260"
@@ -106,6 +103,7 @@ export function ParticipantForm({
             id="targetBmi"
             name="targetBmi"
             type="number"
+            inputMode="decimal"
             step="0.1"
             min="10"
             max="60"

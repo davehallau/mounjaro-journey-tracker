@@ -1,7 +1,22 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { getActiveParticipant, getRecordings } from "@/lib/data";
 import { bmiBand, roundBmi } from "@/lib/bmi";
-import { TrendsChart } from "@/components/charts/trends-chart";
+import { TrendsChart, type RangeState } from "@/components/charts/trends-chart";
+
+async function readRange(): Promise<RangeState | undefined> {
+  const raw = (await cookies()).get("dash_range")?.value;
+  if (!raw) return undefined;
+  try {
+    const v = JSON.parse(decodeURIComponent(raw));
+    if (v && (typeof v.preset === "number" || v.preset === "all")) {
+      return { preset: v.preset, from: v.from ?? "", to: v.to ?? "" };
+    }
+  } catch {
+    // ignore malformed cookie
+  }
+  return undefined;
+}
 
 export async function generateMetadata() {
   const participant = await getActiveParticipant();
@@ -99,6 +114,7 @@ export default async function DashboardPage() {
         targetBmi={
           participant.targetBmi != null ? Number(participant.targetBmi) : null
         }
+        initialRange={await readRange()}
       />
     </div>
   );
