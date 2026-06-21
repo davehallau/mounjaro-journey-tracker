@@ -25,6 +25,24 @@ async function send(to: string, subject: string, html: string) {
   }
 }
 
+export async function sendShareInviteEmail(
+  to: string,
+  sharerEmail: string,
+  participantName: string,
+  acceptUrl: string,
+) {
+  await send(
+    to,
+    `${sharerEmail} shared ${participantName}'s data with you`,
+    `<div style="font-family:system-ui,sans-serif;font-size:15px;color:#0f172a">
+      <p><strong>${sharerEmail}</strong> has shared read-only access to
+      <strong>${participantName}</strong>'s Mounjaro Tracker data with you.</p>
+      <p><a href="${acceptUrl}" style="display:inline-block;background:#059669;color:#fff;padding:10px 16px;border-radius:8px;text-decoration:none;font-weight:600">Accept &amp; view</a></p>
+      <p style="color:#64748b">If the button doesn't work, open: ${acceptUrl}</p>
+    </div>`,
+  );
+}
+
 export async function sendActivationEmail(to: string, code: string) {
   await send(
     to,

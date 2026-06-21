@@ -66,5 +66,26 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       });
       return !!(existing && existing.active);
     },
+    // Resolve and carry our own users.id so server code can scope data per user
+    // (credentials returns it directly; OAuth resolves it by email).
+    async jwt({ token, user }) {
+      if (user) {
+        if (user.email) {
+          const dbUser = await db.query.users.findFirst({
+            where: eq(users.email, user.email.toLowerCase()),
+          });
+          token.userId = dbUser?.id ?? (user.id as string | undefined);
+        } else {
+          token.userId = user.id as string | undefined;
+        }
+      }
+      return token;
+    },
+    async session({ session, token }) {
+      if (session.user && token.userId) {
+        (session.user as { id?: string }).id = token.userId as string;
+      }
+      return session;
+    },
   },
 });

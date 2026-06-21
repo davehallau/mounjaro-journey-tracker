@@ -36,6 +36,13 @@
       "when": 1782044397899,
       "tag": "0004_grey_molten_man",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1782045443206,
+      "tag": "0005_spicy_hairball",
+      "breakpoints": true
     }
   ]
 }

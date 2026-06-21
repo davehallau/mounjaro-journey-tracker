@@ -1,14 +1,15 @@
 "use client";
 
 import { useEffect, useOptimistic, useRef, useState, useTransition } from "react";
-import type { Participant } from "@/lib/db/schema";
 import { selectParticipant } from "@/app/(app)/actions";
+
+export type NavParticipant = { id: string; name: string; shared?: boolean };
 
 export function ParticipantSwitcher({
   participants,
   activeId,
 }: {
-  participants: Participant[];
+  participants: NavParticipant[];
   activeId: string | null;
 }) {
   const [, startTransition] = useTransition();
@@ -103,6 +104,11 @@ export function ParticipantSwitcher({
                     }`}
                   />
                   <span className="truncate">{p.name}</span>
+                  {p.shared && (
+                    <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">
+                      shared
+                    </span>
+                  )}
                   {selected && (
                     <svg
                       viewBox="0 0 20 20"

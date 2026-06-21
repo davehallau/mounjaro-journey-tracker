@@ -4,9 +4,11 @@ import { RecordingForm } from "@/components/recording-form";
 import { updateRecording } from "../actions";
 
 export async function generateMetadata() {
-  const participant = await getActiveParticipant();
+  const active = await getActiveParticipant();
   return {
-    title: participant ? `Edit recording [${participant.name}]` : "Edit recording",
+    title: active
+      ? `Edit recording [${active.participant.name}]`
+      : "Edit recording",
   };
 }
 

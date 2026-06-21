@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { Participant } from "@/lib/db/schema";
 import { signOutAction } from "@/app/(app)/actions";
-import { ParticipantSwitcher } from "@/components/participant-switcher";
+import {
+  ParticipantSwitcher,
+  type NavParticipant,
+} from "@/components/participant-switcher";
 
 const LINKS = [
   { href: "/dashboard", label: "Dashboard" },
@@ -16,7 +18,7 @@ export function AppNav({
   participants,
   activeId,
 }: {
-  participants: Participant[];
+  participants: NavParticipant[];
   activeId: string | null;
 }) {
   const pathname = usePathname();

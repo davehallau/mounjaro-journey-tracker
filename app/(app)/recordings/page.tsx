@@ -9,9 +9,9 @@ import { DeleteForm } from "@/components/delete-form";
 import { createRecording, deleteRecording } from "./actions";
 
 export async function generateMetadata() {
-  const participant = await getActiveParticipant();
+  const active = await getActiveParticipant();
   return {
-    title: participant ? `Recordings [${participant.name}]` : "Recordings",
+    title: active ? `Recordings [${active.participant.name}]` : "Recordings",
   };
 }
 
@@ -20,10 +20,10 @@ export default async function RecordingsPage({
 }: {
   searchParams: Promise<{ new?: string }>;
 }) {
-  const participant = await getActiveParticipant();
+  const active = await getActiveParticipant();
   const openAddForm = (await searchParams).new != null;
 
-  if (!participant) {
+  if (!active) {
     return (
       <div className="card text-center text-slate-500">
         Add a participant first, then you can start logging recordings.{" "}
@@ -37,8 +37,11 @@ export default async function RecordingsPage({
     );
   }
 
+  const { participant, fields, access } = active;
+  const isOwner = access === "owner";
+
   const rows = (
-    await getRecordings(participant.id, Number(participant.heightCm))
+    await getRecordings(participant.id, Number(participant.heightCm), fields)
   ).slice()
     .reverse(); // newest first for the table
   const today = format(new Date(), "yyyy-MM-dd");
@@ -53,16 +56,20 @@ export default async function RecordingsPage({
           Recordings — {participant.name}
         </h1>
         <p className="mt-1 text-sm text-slate-500">
-          Add today&apos;s reading, or edit a past one below.
+          {isOwner
+            ? "Add today's reading, or edit a past one below."
+            : "Shared with you · read-only."}
         </p>
       </div>
 
-      <AddRecordingPanel
-        action={createAction}
-        defaultDate={today}
-        latest={latest}
-        initialOpen={openAddForm}
-      />
+      {isOwner && (
+        <AddRecordingPanel
+          action={createAction}
+          defaultDate={today}
+          latest={latest}
+          initialOpen={openAddForm}
+        />
+      )}
 
       <section className="space-y-3">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
@@ -85,7 +92,7 @@ export default async function RecordingsPage({
                   <th className="px-4 py-3 text-center">Appetite</th>
                   <th className="px-4 py-3 text-center">Medication</th>
                   <th className="px-4 py-3">Notes</th>
-                  <th className="px-4 py-3" />
+                  {isOwner && <th className="px-4 py-3" />}
                 </tr>
               </thead>
               <tbody>
@@ -132,23 +139,25 @@ export default async function RecordingsPage({
                       <td className="max-w-[200px] truncate px-4 py-3 text-slate-500">
                         {r.notes ?? ""}
                       </td>
-                      <td className="whitespace-nowrap px-4 py-3">
-                        <div className="flex items-center justify-end gap-2">
-                          <Link
-                            href={`/recordings/${r.id}`}
-                            className="text-emerald-700 hover:underline"
-                          >
-                            Edit
-                          </Link>
-                          <DeleteForm
-                            action={deleteRecording}
-                            id={r.id}
-                            label="Delete"
-                            className="text-red-600 hover:underline"
-                            confirmMessage="Delete this recording?"
-                          />
-                        </div>
-                      </td>
+                      {isOwner && (
+                        <td className="whitespace-nowrap px-4 py-3">
+                          <div className="flex items-center justify-end gap-2">
+                            <Link
+                              href={`/recordings/${r.id}`}
+                              className="text-emerald-700 hover:underline"
+                            >
+                              Edit
+                            </Link>
+                            <DeleteForm
+                              action={deleteRecording}
+                              id={r.id}
+                              label="Delete"
+                              className="text-red-600 hover:underline"
+                              confirmMessage="Delete this recording?"
+                            />
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   );
                 })}

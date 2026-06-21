@@ -28,9 +28,12 @@ export const users = pgTable("users", {
     .notNull(),
 });
 
-// A person being measured. One login can manage several participants.
+// A person being measured. Owned by the user who created them.
 export const participants = pgTable("participants", {
   id: uuid("id").defaultRandom().primaryKey(),
+  ownerUserId: uuid("owner_user_id").references(() => users.id, {
+    onDelete: "cascade",
+  }),
   name: text("name").notNull(),
   dob: date("dob").notNull(),
   gender: text("gender").notNull(), // male | female | other | undisclosed
@@ -40,6 +43,37 @@ export const participants = pgTable("participants", {
     .defaultNow()
     .notNull(),
 });
+
+// Read-only access grants from a participant's owner to another user. The
+// share_* flags gate which optional fields the recipient may see.
+export const shares = pgTable(
+  "shares",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    participantId: uuid("participant_id")
+      .notNull()
+      .references(() => participants.id, { onDelete: "cascade" }),
+    recipientUserId: uuid("recipient_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    status: text("status").notNull().default("pending"), // pending | accepted
+    token: text("token").notNull(),
+    shareDob: boolean("share_dob").notNull().default(false),
+    shareMood: boolean("share_mood").notNull().default(false),
+    shareAppetite: boolean("share_appetite").notNull().default(false),
+    shareEnergy: boolean("share_energy").notNull().default(false),
+    shareNotes: boolean("share_notes").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [
+    unique("shares_participant_recipient_uq").on(
+      t.participantId,
+      t.recipientUserId,
+    ),
+  ],
+);
 
 // One measurement event for a participant.
 export const recordings = pgTable(

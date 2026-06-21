@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { differenceInYears } from "date-fns";
-import { listParticipants } from "@/lib/data";
+import { currentUserId, listOwnedParticipants } from "@/lib/data";
 import { GENDER_LABELS } from "@/lib/validation";
 import { DeleteForm } from "@/components/delete-form";
 import { deleteParticipant } from "./actions";
@@ -8,7 +8,8 @@ import { deleteParticipant } from "./actions";
 export const metadata = { title: "Participants" };
 
 export default async function ParticipantsPage() {
-  const participants = await listParticipants();
+  const userId = await currentUserId();
+  const participants = userId ? await listOwnedParticipants(userId) : [];
 
   return (
     <div className="space-y-5">

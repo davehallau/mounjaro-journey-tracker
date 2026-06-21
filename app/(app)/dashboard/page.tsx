@@ -19,16 +19,16 @@ async function readRange(): Promise<RangeState | undefined> {
 }
 
 export async function generateMetadata() {
-  const participant = await getActiveParticipant();
+  const active = await getActiveParticipant();
   return {
-    title: participant ? `Dashboard [${participant.name}]` : "Dashboard",
+    title: active ? `Dashboard [${active.participant.name}]` : "Dashboard",
   };
 }
 
 export default async function DashboardPage() {
-  const participant = await getActiveParticipant();
+  const active = await getActiveParticipant();
 
-  if (!participant) {
+  if (!active) {
     return (
       <div className="card text-center text-slate-500">
         Welcome! Add a participant to get started.{" "}
@@ -42,9 +42,13 @@ export default async function DashboardPage() {
     );
   }
 
+  const { participant, fields, access } = active;
+  const isOwner = access === "owner";
+
   const recordings = await getRecordings(
     participant.id,
     Number(participant.heightCm),
+    fields,
   );
 
   if (recordings.length === 0) {
@@ -54,14 +58,20 @@ export default async function DashboardPage() {
           {participant.name}
         </h1>
         <div className="card text-center text-slate-500">
-          No recordings yet.{" "}
-          <Link
-            href="/recordings?new=1"
-            className="font-medium text-emerald-700 hover:underline"
-          >
-            Add your first recording
-          </Link>{" "}
-          to see your graphs.
+          {isOwner ? (
+            <>
+              No recordings yet.{" "}
+              <Link
+                href="/recordings?new=1"
+                className="font-medium text-emerald-700 hover:underline"
+              >
+                Add your first recording
+              </Link>{" "}
+              to see your graphs.
+            </>
+          ) : (
+            "No recordings shared yet."
+          )}
         </div>
       </div>
     );
@@ -79,12 +89,19 @@ export default async function DashboardPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-end justify-between">
-        <h1 className="text-xl font-semibold text-slate-900">
+        <h1 className="flex items-center gap-2 text-xl font-semibold text-slate-900">
           {participant.name}
+          {!isOwner && (
+            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">
+              shared · read-only
+            </span>
+          )}
         </h1>
-        <Link href="/recordings?new=1" className="btn-primary">
-          + Add recording
-        </Link>
+        {isOwner && (
+          <Link href="/recordings?new=1" className="btn-primary">
+            + Add recording
+          </Link>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
