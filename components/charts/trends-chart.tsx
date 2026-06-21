@@ -50,6 +50,15 @@ const WELLBEING_SERIES: Series[] = [
   { key: "appetite", label: "Appetite", color: "#e11d48", axis: "scale" },
 ];
 
+// Tiny vertical offsets so wellbeing lines that share a value don't sit exactly
+// on top of one another (the lines plot at value ± this; the tooltip shows the
+// true value). Keep small enough to still read against the integer gridlines.
+const WELLBEING_OFFSET: Record<string, number> = {
+  mood: 0.12,
+  energy: 0,
+  appetite: -0.12,
+};
+
 const PRESETS: { label: string; months: number | "all" }[] = [
   { label: "1M", months: 1 },
   { label: "3M", months: 3 },
@@ -132,6 +141,7 @@ export function TrendsChart({
   const [wellbeingVisible, setWellbeingVisible] = useState<
     Record<string, boolean>
   >(Object.fromEntries(WELLBEING_SERIES.map((s) => [s.key, s.key !== "energy"])));
+  const [showBmiTarget, setShowBmiTarget] = useState(true);
 
   const toggleTrend = (key: string) =>
     setTrendsVisible((v) => ({ ...v, [key]: !v[key] }));
@@ -192,6 +202,14 @@ export function TrendsChart({
       moodDotted: null as number | null,
       energyDotted: null as number | null,
       appetiteDotted: null as number | null,
+      // Offset copies (value ± WELLBEING_OFFSET) used only for plotting the
+      // wellbeing lines so coincident series stay visible (filled below).
+      moodAdj: null as number | null,
+      energyAdj: null as number | null,
+      appetiteAdj: null as number | null,
+      moodDottedAdj: null as number | null,
+      energyDottedAdj: null as number | null,
+      appetiteDottedAdj: null as number | null,
     };
   });
 
@@ -226,18 +244,29 @@ export function TrendsChart({
     }
   }
 
+  // Apply the small per-series offset to the wellbeing plotting copies.
+  for (const key of ["mood", "energy", "appetite"] as const) {
+    const off = WELLBEING_OFFSET[key];
+    for (const d of chartData) {
+      d[`${key}Adj`] = d[key] != null ? (d[key] as number) + off : null;
+      d[`${key}DottedAdj`] =
+        d[`${key}Dotted`] != null ? (d[`${key}Dotted`] as number) + off : null;
+    }
+  }
+
   const bmiValues = chartData
     .map((d) => d.bmi)
     .filter((v): v is number => v != null);
   const bmiMax = bmiValues.length ? Math.max(...bmiValues) : 30;
   const bmiMin = bmiValues.length ? Math.min(...bmiValues) : 18;
 
-  // Shared BMI domain (at least 1 unit clearance + the target line), used by the
-  // dedicated BMI chart and the hidden BMI axis on the Trends chart so the BMI
-  // line reads identically in both.
+  // Shared BMI domain: rounded out to whole units 1.0 beyond the min/max of the
+  // shown data (and the target line, when visible). Used by the dedicated BMI
+  // chart and the hidden BMI axis on the Trends chart so the line reads alike.
+  const bmiTarget = showBmiTarget ? targetBmi : null;
   const bmiDomain: [number, number] = [
-    Math.floor(Math.min(bmiMin, targetBmi ?? Infinity) - 1),
-    Math.ceil(Math.max(bmiMax, targetBmi ?? -Infinity) + 1),
+    Math.floor(Math.min(bmiMin, bmiTarget ?? Infinity) - 1),
+    Math.ceil(Math.max(bmiMax, bmiTarget ?? -Infinity) + 1),
   ];
 
   // Left-axis domain: scaled to the *visible* main-axis series (not zero-based),
@@ -729,7 +758,7 @@ export function TrendsChart({
                   <Line
                     yAxisId="scale"
                     type={curveRounded}
-                    dataKey="energyDotted"
+                    dataKey="energyDottedAdj"
                     name="Energy"
                     stroke="#0891b2"
                     strokeWidth={2}
@@ -744,7 +773,7 @@ export function TrendsChart({
                   <Line
                     yAxisId="scale"
                     type={curveRounded}
-                    dataKey="appetiteDotted"
+                    dataKey="appetiteDottedAdj"
                     name="Appetite"
                     stroke="#e11d48"
                     strokeWidth={2}
@@ -759,7 +788,7 @@ export function TrendsChart({
                   <Line
                     yAxisId="scale"
                     type={curveRounded}
-                    dataKey="moodDotted"
+                    dataKey="moodDottedAdj"
                     name="Mood"
                     stroke="#334155"
                     strokeWidth={2}
@@ -778,7 +807,7 @@ export function TrendsChart({
                     key={s.key}
                     yAxisId="scale"
                     type={curveRounded}
-                    dataKey={s.key}
+                    dataKey={`${s.key}Adj`}
                     name={s.label}
                     stroke={s.color}
                     strokeWidth={2}
@@ -790,7 +819,7 @@ export function TrendsChart({
                   <Line
                     yAxisId="scale"
                     type={curveRounded}
-                    dataKey="mood"
+                    dataKey="moodAdj"
                     name="Mood"
                     stroke="#334155"
                     strokeWidth={2}
@@ -811,6 +840,25 @@ export function TrendsChart({
               Hover a point for its category. Bands show the WHO healthy-weight
               ranges.
             </p>
+            {targetBmi != null && (
+              <div className="mb-3 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowBmiTarget((v) => !v)}
+                  className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition ${
+                    showBmiTarget
+                      ? "border-slate-300 bg-white text-slate-700"
+                      : "border-slate-200 bg-slate-50 text-slate-400"
+                  }`}
+                >
+                  <span
+                    className="inline-block h-2.5 w-2.5 rounded-full"
+                    style={{ background: showBmiTarget ? "#dc2626" : "#cbd5e1" }}
+                  />
+                  Target {targetBmi}
+                </button>
+              </div>
+            )}
             <ResponsiveContainer
               className="select-none [-webkit-tap-highlight-color:transparent]"
               width="100%" height={300}>
@@ -844,7 +892,7 @@ export function TrendsChart({
                     ifOverflow="hidden"
                   />
                 ))}
-                {targetBmi != null && (
+                {showBmiTarget && targetBmi != null && (
                   <ReferenceLine
                     y={targetBmi}
                     stroke="#dc2626"
@@ -1021,16 +1069,25 @@ function TrendsTooltip({ active, label, payload }: TooltipProps) {
         {label ? format(new Date(label), "d MMM yyyy") : ""}
       </p>
       <ul className="space-y-0.5">
-        {items.map((p, i) => (
-          <li key={i} className="flex items-center gap-1.5">
-            <span
-              className="inline-block h-2 w-2 rounded-full"
-              style={{ background: p.color }}
-            />
-            <span className="text-slate-500">{p.name}:</span>
-            <span className="font-medium text-slate-800">{p.value}</span>
-          </li>
-        ))}
+        {items.map((p, i) => {
+          // Wellbeing lines plot an offset copy (…Adj); show the true value.
+          const key = String(p.dataKey ?? "");
+          const display = key.endsWith("Adj")
+            ? (p.payload as Record<string, number | null | undefined>)[
+                key.slice(0, -3)
+              ]
+            : p.value;
+          return (
+            <li key={i} className="flex items-center gap-1.5">
+              <span
+                className="inline-block h-2 w-2 rounded-full"
+                style={{ background: p.color }}
+              />
+              <span className="text-slate-500">{p.name}:</span>
+              <span className="font-medium text-slate-800">{display}</span>
+            </li>
+          );
+        })}
         {showAdministered && (
           <li className="flex items-center gap-1.5">
             <span aria-hidden="true">💉</span>
