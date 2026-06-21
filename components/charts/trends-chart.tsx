@@ -12,9 +12,9 @@ import {
   ComposedChart,
   Line,
   ReferenceArea,
+  ReferenceDot,
   ReferenceLine,
   ResponsiveContainer,
-  Scatter,
   Tooltip,
   XAxis,
   YAxis,
@@ -185,6 +185,8 @@ export function TrendsChart({
       activeMed: active?.medication ?? null,
       activeMg: active?.doseMg ?? null,
       activeDoseDate: active?.recordedOn ?? null,
+      // A dose administered on this very date (shown with a 💉 in the tooltip).
+      administeredToday: active != null && ts(active.recordedOn) === rowT,
       // Dotted companions bridge interior gaps in optional fields (filled below).
       waistCmDotted: null as number | null,
       moodDotted: null as number | null,
@@ -326,14 +328,6 @@ export function TrendsChart({
       doseStart = i;
     }
   }
-
-  // Needle markers as their own dataset — tappable for dose details.
-  const doseData = dosesInRange.map((d) => ({
-    t: ts(d.recordedOn),
-    doseY: 18,
-    medication: d.medication,
-    doseMg: d.doseMg,
-  }));
 
   // Evenly divide the visible time span into a fixed number of x-axis ticks.
   const X_TICKS = 5;
@@ -492,7 +486,7 @@ export function TrendsChart({
         </div>
       </div>
 
-      {chartData.length === 0 && doseData.length === 0 ? (
+      {chartData.length === 0 && dosesInRange.length === 0 ? (
         <div className="card text-center text-sm text-slate-500">
           Nothing recorded in this range.
         </div>
@@ -633,16 +627,19 @@ export function TrendsChart({
                     activeDot={{ r: 5 }}
                   />
                 )}
-                {/* Needle markers — their own dataset, tappable for details. */}
-                {trendsVisible.mounjaroDoseMg && (
-                  <Scatter
-                    yAxisId="dose"
-                    data={doseData}
-                    dataKey="doseY"
-                    shape={<NeedleMarker onSelect={setDosePop} />}
-                    isAnimationActive={false}
-                  />
-                )}
+                {/* Needle markers — reference annotations (NOT a data series, so
+                    they don't disturb the shared tooltip), tappable for details. */}
+                {trendsVisible.mounjaroDoseMg &&
+                  dosesInRange.map((d, i) => (
+                    <ReferenceDot
+                      key={`needle-${i}`}
+                      yAxisId="dose"
+                      x={ts(d.recordedOn)}
+                      y={18}
+                      ifOverflow="extendDomain"
+                      shape={<NeedleMarker dose={d} onSelect={setDosePop} />}
+                    />
+                  ))}
               </ComposedChart>
             </ResponsiveContainer>
             {dosePop && (
@@ -921,7 +918,7 @@ function MetricToggles({
 function NeedleMarker(props: {
   cx?: number;
   cy?: number;
-  payload?: { t: number; medication: string; doseMg: number | null };
+  dose?: DoseView;
   onSelect?: (d: {
     cx: number;
     cy: number;
@@ -930,17 +927,17 @@ function NeedleMarker(props: {
     t: number;
   }) => void;
 }) {
-  const { cx, cy, payload, onSelect } = props;
+  const { cx, cy, dose, onSelect } = props;
   if (cx == null || cy == null) return <g />;
   const handle = (e: ReactMouseEvent) => {
     e.stopPropagation();
-    if (payload && onSelect)
+    if (dose && onSelect)
       onSelect({
         cx,
         cy,
-        medication: payload.medication,
-        doseMg: payload.doseMg,
-        t: payload.t,
+        medication: dose.medication,
+        doseMg: dose.doseMg,
+        t: ts(dose.recordedOn),
       });
   };
   return (
@@ -988,11 +985,10 @@ type TooltipProps = {
     dataKey?: string | number;
     payload?: {
       t?: number;
-      medication?: string | null;
-      doseMg?: number | null;
       activeMed?: string | null;
       activeMg?: number | null;
       activeDoseDate?: string | null;
+      administeredToday?: boolean;
     };
   }>;
 };
@@ -1013,12 +1009,11 @@ function TrendsTooltip({ active, label, payload }: TooltipProps) {
     seen.add(name);
     return true;
   });
-  // A dose administered on this exact date (needle), else the dose carried
-  // forward from a recent administration (shown on between-dose body readings).
-  const administered = here.find((p) => p.payload?.medication != null)?.payload;
-  const carried = here.find((p) => p.payload?.activeMed != null)?.payload;
-  const showAdministered = administered?.medication != null;
-  const showCarried = !showAdministered && carried?.activeMed != null;
+  // A dose administered on this exact date, else the dose carried forward from a
+  // recent administration (shown on between-dose body readings).
+  const row = here[0]?.payload;
+  const showAdministered = !!row?.administeredToday && row?.activeMed != null;
+  const showCarried = !showAdministered && row?.activeMed != null;
   if (!items.length && !showAdministered && !showCarried) return null;
   return (
     <div className="rounded-lg border border-slate-200 bg-white p-3 text-xs shadow-md">
@@ -1041,8 +1036,8 @@ function TrendsTooltip({ active, label, payload }: TooltipProps) {
             <span aria-hidden="true">💉</span>
             <span className="text-slate-500">Dose:</span>
             <span className="font-medium text-slate-800">
-              {medicationLabel(administered?.medication)}
-              {administered?.doseMg != null ? ` ${administered.doseMg} mg` : ""}
+              {medicationLabel(row?.activeMed)}
+              {row?.activeMg != null ? ` ${row.activeMg} mg` : ""}
             </span>
           </li>
         )}
@@ -1050,12 +1045,12 @@ function TrendsTooltip({ active, label, payload }: TooltipProps) {
           <li className="flex items-center gap-1.5">
             <span className="text-slate-500">Dose:</span>
             <span className="font-medium text-slate-800">
-              {medicationLabel(carried?.activeMed)}
-              {carried?.activeMg != null ? ` ${carried.activeMg} mg` : ""}
+              {medicationLabel(row?.activeMed)}
+              {row?.activeMg != null ? ` ${row.activeMg} mg` : ""}
             </span>
-            {carried?.activeDoseDate && (
+            {row?.activeDoseDate && (
               <span className="text-slate-400">
-                · last {format(new Date(carried.activeDoseDate), "d MMM")}
+                · last {format(new Date(row.activeDoseDate), "d MMM")}
               </span>
             )}
           </li>
