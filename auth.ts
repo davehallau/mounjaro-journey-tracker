@@ -79,6 +79,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           token.userId = user.id as string | undefined;
         }
       }
+      // Backfill for sessions issued before userId existed: the JWT subject is
+      // our users.id for credentials logins.
+      if (!token.userId && typeof token.sub === "string") {
+        token.userId = token.sub;
+      }
       return token;
     },
     async session({ session, token }) {
