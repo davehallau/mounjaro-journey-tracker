@@ -309,6 +309,17 @@ export function TrendsChart({
   }
   const doseDates = dosesInRange.map((d) => ts(d.recordedOn));
 
+  // Evenly divide the visible time span into a fixed number of x-axis ticks.
+  const tMin = chartData.length ? chartData[0].t : 0;
+  const tMax = chartData.length ? chartData[chartData.length - 1].t : 0;
+  const X_TICKS = 5;
+  const xTicks =
+    tMax > tMin
+      ? Array.from({ length: X_TICKS }, (_, i) =>
+          Math.round(tMin + ((tMax - tMin) * i) / (X_TICKS - 1)),
+        )
+      : [tMin];
+
   const customActive = from !== "" || to !== "";
 
   const [rangeOpen, setRangeOpen] = useState(false);
@@ -467,10 +478,11 @@ export function TrendsChart({
                   dataKey="t"
                   type="number"
                   scale="time"
-                  domain={["dataMin", "dataMax"]}
+                  domain={[tMin, tMax]}
+                  ticks={xTicks}
+                  interval={0}
                   tickFormatter={fmtTs}
                   tick={{ fontSize: 12, fill: "#64748b" }}
-                  minTickGap={24}
                 />
                 {/* Weight / waist — the only visible axis, always on the left. */}
                 <YAxis
@@ -656,10 +668,11 @@ export function TrendsChart({
                   dataKey="t"
                   type="number"
                   scale="time"
-                  domain={["dataMin", "dataMax"]}
+                  domain={[tMin, tMax]}
+                  ticks={xTicks}
+                  interval={0}
                   tickFormatter={fmtTs}
                   tick={{ fontSize: 12, fill: "#64748b" }}
-                  minTickGap={24}
                 />
                 <YAxis
                   yAxisId="scale"
@@ -780,10 +793,11 @@ export function TrendsChart({
                   dataKey="t"
                   type="number"
                   scale="time"
-                  domain={["dataMin", "dataMax"]}
+                  domain={[tMin, tMax]}
+                  ticks={xTicks}
+                  interval={0}
                   tickFormatter={fmtTs}
                   tick={{ fontSize: 12, fill: "#64748b" }}
-                  minTickGap={24}
                 />
                 <YAxis
                   domain={bmiDomain}
