@@ -1,6 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type MouseEvent as ReactMouseEvent,
+} from "react";
 import { format, parseISO, subMonths } from "date-fns";
 import {
   CartesianGrid,
@@ -341,6 +346,22 @@ export function TrendsChart({
 
   const customActive = from !== "" || to !== "";
 
+  // A dose needle the user tapped — shows its own date/dose popover, anchored at
+  // the marker's pixel position within the chart.
+  const [dosePop, setDosePop] = useState<{
+    cx: number;
+    cy: number;
+    medication: string;
+    doseMg: number | null;
+    t: number;
+  } | null>(null);
+  useEffect(() => {
+    if (!dosePop) return;
+    const close = () => setDosePop(null);
+    document.addEventListener("pointerdown", close);
+    return () => document.removeEventListener("pointerdown", close);
+  }, [dosePop]);
+
   const [rangeOpen, setRangeOpen] = useState(false);
   const rangeRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -487,6 +508,7 @@ export function TrendsChart({
               visible={trendsVisible}
               onToggle={toggleTrend}
             />
+            <div className="relative">
             <ResponsiveContainer
               className="select-none [-webkit-tap-highlight-color:transparent]"
               width="100%" height={340}>
@@ -617,12 +639,32 @@ export function TrendsChart({
                     yAxisId="dose"
                     data={doseData}
                     dataKey="doseY"
-                    shape={<NeedleMarker />}
+                    shape={<NeedleMarker onSelect={setDosePop} />}
                     isAnimationActive={false}
                   />
                 )}
               </ComposedChart>
             </ResponsiveContainer>
+            {dosePop && (
+              <div
+                className="pointer-events-none absolute z-20 -translate-x-1/2 -translate-y-full"
+                style={{ left: dosePop.cx, top: dosePop.cy - 10 }}
+              >
+                <div className="whitespace-nowrap rounded-lg border border-slate-200 bg-white p-2.5 text-xs shadow-md">
+                  <p className="mb-0.5 font-semibold text-slate-700">
+                    {format(new Date(dosePop.t), "d MMM yyyy")}
+                  </p>
+                  <p className="flex items-center gap-1.5">
+                    <span aria-hidden="true">💉</span>
+                    <span className="font-medium text-slate-800">
+                      {medicationLabel(dosePop.medication)}
+                      {dosePop.doseMg != null ? ` ${dosePop.doseMg} mg` : ""}
+                    </span>
+                  </p>
+                </div>
+              </div>
+            )}
+            </div>
             <p className="mt-2 text-xs text-slate-400">
               Weight and waist use the left axis; BMI and appetite are overlaid on
               hidden scales. Shaded bands show each medication + dose period, with
@@ -874,21 +916,46 @@ function MetricToggles({
   );
 }
 
-// Colour each BMI point by its WHO category.
-function NeedleMarker(props: { cx?: number; cy?: number }) {
-  const { cx, cy } = props;
+// A tappable 💉 dose marker. The larger transparent circle widens the touch
+// target; tapping reports the dose's date/details to the parent popover.
+function NeedleMarker(props: {
+  cx?: number;
+  cy?: number;
+  payload?: { t: number; medication: string; doseMg: number | null };
+  onSelect?: (d: {
+    cx: number;
+    cy: number;
+    medication: string;
+    doseMg: number | null;
+    t: number;
+  }) => void;
+}) {
+  const { cx, cy, payload, onSelect } = props;
   if (cx == null || cy == null) return <g />;
+  const handle = (e: ReactMouseEvent) => {
+    e.stopPropagation();
+    if (payload && onSelect)
+      onSelect({
+        cx,
+        cy,
+        medication: payload.medication,
+        doseMg: payload.doseMg,
+        t: payload.t,
+      });
+  };
   return (
-    <text
-      x={cx}
-      y={cy}
-      textAnchor="middle"
-      dominantBaseline="central"
-      fontSize={13}
-      style={{ cursor: "pointer" }}
-    >
-      💉
-    </text>
+    <g style={{ cursor: "pointer" }} onClick={handle}>
+      <circle cx={cx} cy={cy} r={14} fill="transparent" />
+      <text
+        x={cx}
+        y={cy}
+        textAnchor="middle"
+        dominantBaseline="central"
+        fontSize={13}
+      >
+        💉
+      </text>
+    </g>
   );
 }
 
