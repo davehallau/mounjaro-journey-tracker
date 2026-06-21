@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  boolean,
   check,
   date,
   numeric,
@@ -15,7 +16,13 @@ import {
 export const users = pgTable("users", {
   id: uuid("id").defaultRandom().primaryKey(),
   username: text("username").notNull().unique(),
+  email: text("email").unique(),
   passwordHash: text("password_hash").notNull(),
+  // New accounts start inactive until the emailed code is entered. Defaults to
+  // true so existing/seeded logins keep working.
+  active: boolean("active").notNull().default(true),
+  activationCode: text("activation_code"),
+  activationExpires: timestamp("activation_expires", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true })
     .defaultNow()
     .notNull(),

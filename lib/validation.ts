@@ -83,8 +83,22 @@ export const recordingSchema = z.object({
   ),
 });
 
+export const registerSchema = z.object({
+  email: z.string().trim().toLowerCase().email("Enter a valid email"),
+  password: z.string().min(8, "Use at least 8 characters").max(200),
+});
+
+export const activateSchema = z.object({
+  email: z.string().trim().toLowerCase().email("Enter a valid email"),
+  code: z
+    .string()
+    .trim()
+    .regex(/^\d{6}$/, "Enter the 6-digit code"),
+});
+
 export type ParticipantInput = z.infer<typeof participantSchema>;
 export type RecordingInput = z.infer<typeof recordingSchema>;
+export type RegisterInput = z.infer<typeof registerSchema>;
 
 /** Convert a flat FormData into a plain object for schema parsing. */
 export function formToObject(formData: FormData): Record<string, unknown> {

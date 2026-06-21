@@ -9,11 +9,15 @@ export const authConfig = {
   callbacks: {
     authorized({ auth, request: { nextUrl } }) {
       const loggedIn = !!auth?.user;
-      const onLogin = nextUrl.pathname.startsWith("/login");
+      const { pathname } = nextUrl;
+      const onAuthPage =
+        pathname.startsWith("/login") ||
+        pathname.startsWith("/register") ||
+        pathname.startsWith("/activate");
 
-      if (onLogin) {
+      if (onAuthPage) {
         if (loggedIn) return Response.redirect(new URL("/dashboard", nextUrl));
-        return true; // allow access to the login page
+        return true; // public auth pages
       }
       return loggedIn; // everything else requires a session
     },

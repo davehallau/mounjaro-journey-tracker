@@ -22,3 +22,11 @@ export async function authenticate(
   }
   return undefined;
 }
+
+export async function signInWithGoogle() {
+  await signIn("google", { redirectTo: "/dashboard" });
+}
+
+export async function signInWithMicrosoft() {
+  await signIn("microsoft-entra-id", { redirectTo: "/dashboard" });
+}
