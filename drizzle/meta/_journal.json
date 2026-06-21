@@ -43,6 +43,13 @@
       "when": 1782045443206,
       "tag": "0005_spicy_hairball",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1782047684135,
+      "tag": "0006_gigantic_dazzler",
+      "breakpoints": true
     }
   ]
 }

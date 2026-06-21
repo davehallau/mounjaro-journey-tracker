@@ -66,20 +66,14 @@ async function main() {
 
     await pool.query(
       `insert into recordings
-        (participant_id, recorded_on, weight_kg, waist_cm, mood, energy, appetite, medication, mounjaro_dose_mg, notes)
-       values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
-      [
-        participantId,
-        date,
-        weight,
-        waist,
-        mood,
-        energy,
-        appetite,
-        "mounjaro",
-        dose(i),
-        noteFor(i),
-      ],
+        (participant_id, recorded_on, weight_kg, waist_cm, mood, energy, appetite, notes)
+       values ($1,$2,$3,$4,$5,$6,$7,$8)`,
+      [participantId, date, weight, waist, mood, energy, appetite, noteFor(i)],
+    );
+    await pool.query(
+      `insert into doses (participant_id, recorded_on, medication, dose_mg)
+       values ($1,$2,'mounjaro',$3)`,
+      [participantId, date, dose(i)],
     );
   }
 

@@ -11,11 +11,16 @@ import { MEDICATIONS, dosesFor } from "@/lib/medications";
 export function MedicationFields({
   defaultMedication,
   defaultDose,
+  includeNone = true,
 }: {
   defaultMedication?: string | null;
   defaultDose?: number | null;
+  includeNone?: boolean;
 }) {
-  const initialMed = defaultMedication ?? "none";
+  const options = includeNone
+    ? MEDICATIONS
+    : MEDICATIONS.filter((m) => m.value !== "none");
+  const initialMed = defaultMedication ?? (includeNone ? "none" : options[0].value);
   const [med, setMed] = useState(initialMed);
   const doses = dosesFor(med);
   const doseDefault =
@@ -33,7 +38,7 @@ export function MedicationFields({
           ariaLabel="Medication"
           value={med}
           onChange={setMed}
-          options={MEDICATIONS.map((m) => ({ value: m.value, label: m.label }))}
+          options={options.map((m) => ({ value: m.value, label: m.label }))}
         />
       </div>
       <div>

@@ -61,30 +61,33 @@ export const participantSchema = z.object({
   targetBmi: optionalNumber(10, 60),
 });
 
-export const recordingSchema = z
+export const recordingSchema = z.object({
+  recordedOn: isoDate,
+  weightKg: z.coerce.number().min(20, "Too low").max(400, "Too high"),
+  waistCm: optionalNumber(30, 300),
+  mood: optionalScale(7),
+  energy: optionalScale(5),
+  appetite: optionalScale(5),
+  notes: z.preprocess(
+    (v) => (v === "" || v == null ? undefined : v),
+    z.string().max(2000).optional(),
+  ),
+});
+
+export const doseSchema = z
   .object({
     recordedOn: isoDate,
-    weightKg: z.coerce.number().min(20, "Too low").max(400, "Too high"),
-    waistCm: optionalNumber(30, 300),
-    mood: optionalScale(7),
-    energy: optionalScale(5),
-    appetite: optionalScale(5),
-    medication: z.preprocess(
-      (v) => (v === "" || v == null ? "none" : v),
-      z.enum(MEDICATION_VALUES),
+    medication: z.enum(MEDICATION_VALUES).refine(
+      (m) => m !== "none",
+      "Pick a medication",
     ),
     mounjaroDoseMg: z.preprocess(
       (v) => (v === "" || v == null || v === "none" ? undefined : v),
       z.coerce.number().optional(),
     ),
-    notes: z.preprocess(
-      (v) => (v === "" || v == null ? undefined : v),
-      z.string().max(2000).optional(),
-    ),
   })
   .superRefine((val, ctx) => {
     if (
-      val.medication !== "none" &&
       val.mounjaroDoseMg != null &&
       !dosesFor(val.medication).includes(val.mounjaroDoseMg)
     ) {

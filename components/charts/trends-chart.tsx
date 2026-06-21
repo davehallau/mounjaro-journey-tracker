@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { format, parseISO, subMonths } from "date-fns";
 import {
-  Area,
   CartesianGrid,
   ComposedChart,
   Line,
@@ -15,13 +14,14 @@ import {
   YAxis,
 } from "recharts";
 import type { CurveFactory } from "victory-vendor/d3-shape";
-import type { RecordingView } from "@/lib/data";
+import type { DoseView, RecordingView } from "@/lib/data";
 import { BMI_BANDS, bmiBand, roundBmi } from "@/lib/bmi";
 import { scaleColorLight } from "@/lib/scale-colors";
+import { medicationLabel } from "@/lib/medications";
 import { DatePicker } from "@/components/date-picker";
 
 type Series = {
-  key: keyof RecordingView;
+  key: string;
   label: string;
   color: string;
   axis: "main" | "scale" | "dose" | "scaleHidden" | "bmiHidden";
@@ -98,10 +98,12 @@ export type RangeState = { preset: number | "all"; from: string; to: string };
 
 export function TrendsChart({
   data,
+  doses,
   targetBmi,
   initialRange,
 }: {
   data: RecordingView[];
+  doses: DoseView[];
   targetBmi?: number | null;
   initialRange?: RangeState;
 }) {
@@ -129,36 +131,61 @@ export function TrendsChart({
   const toggleWellbeing = (key: string) =>
     setWellbeingVisible((v) => ({ ...v, [key]: !v[key] }));
 
-  const filtered = useMemo(() => {
-    let start: Date | null = from ? new Date(from) : null;
-    const end: Date | null = to ? new Date(to) : null;
-    if (!start && preset !== "all") start = subMonths(new Date(), preset);
-    return data.filter((d) => {
-      const t = new Date(d.recordedOn);
-      if (start && t < start) return false;
-      if (end && t > end) return false;
-      return true;
-    });
-  }, [data, preset, from, to]);
+  const rangeStart = from
+    ? new Date(from)
+    : preset !== "all"
+      ? subMonths(new Date(), preset)
+      : null;
+  const rangeEnd = to ? new Date(to) : null;
+  const inRange = (d: string) => {
+    const t = new Date(d);
+    if (rangeStart && t < rangeStart) return false;
+    if (rangeEnd && t > rangeEnd) return false;
+    return true;
+  };
 
-  const chartData = filtered.map((d) => ({
-    ...d,
-    bmi: roundBmi(d.bmi),
-    // Carry-forward step value for the dose area (missing dose → 0), so the
-    // shaded band and the dose labels share the same model.
-    doseStep: d.mounjaroDoseMg ?? 0,
-    // Full edge-to-edge "dotted" companion for each optional metric (filled in
-    // below): flat carry-out to the chart edges and a straight trend across any
-    // interior gaps. Drawn under the solid line — which only joins adjacent
-    // readings — so gaps and edges read as dotted while real spans read solid.
-    waistCmDotted: null as number | null,
-    moodDotted: null as number | null,
-    energyDotted: null as number | null,
-    appetiteDotted: null as number | null,
-  }));
+  // Body recordings and dose administrations are recorded independently, so the
+  // x-axis is the union of both sets of dates.
+  const recsInRange = data.filter((d) => inRange(d.recordedOn));
+  const dosesInRange = doses.filter((d) => inRange(d.recordedOn));
+  const recByDate = new Map(recsInRange.map((r) => [r.recordedOn, r]));
+  const doseByDate = new Map(dosesInRange.map((d) => [d.recordedOn, d]));
+  const allDates = Array.from(
+    new Set([...recByDate.keys(), ...doseByDate.keys()]),
+  ).sort();
 
-  // Weight/BMI are always present so they never need a dotted companion.
-  for (const key of ["waistCm", "mood", "energy", "appetite"] as const) {
+  const chartData = allDates.map((date) => {
+    const r = recByDate.get(date);
+    const d = doseByDate.get(date);
+    return {
+      recordedOn: date,
+      weightKg: r?.weightKg ?? null,
+      waistCm: r?.waistCm ?? null,
+      mood: r?.mood ?? null,
+      energy: r?.energy ?? null,
+      appetite: r?.appetite ?? null,
+      bmi: r ? roundBmi(r.bmi) : null,
+      doseMed: d?.medication ?? null,
+      doseMg: d?.doseMg ?? null,
+      // Dotted companions (filled below) bridge gaps left by days that only
+      // have a dose (no body reading) or vice versa.
+      weightKgDotted: null as number | null,
+      bmiDotted: null as number | null,
+      waistCmDotted: null as number | null,
+      moodDotted: null as number | null,
+      energyDotted: null as number | null,
+      appetiteDotted: null as number | null,
+    };
+  });
+
+  for (const key of [
+    "weightKg",
+    "bmi",
+    "waistCm",
+    "mood",
+    "energy",
+    "appetite",
+  ] as const) {
     const dottedKey = `${key}Dotted` as const;
     const reals: number[] = [];
     for (let i = 0; i < chartData.length; i++) {
@@ -178,7 +205,6 @@ export function TrendsChart({
       } else if (i > lastIdx) {
         chartData[i][dottedKey] = lastVal; // flat lead-out
       } else {
-        // interior gap: straight (linear) trend between surrounding readings
         let a = i;
         let c = i;
         while (chartData[a][key] == null) a--;
@@ -190,7 +216,9 @@ export function TrendsChart({
     }
   }
 
-  const bmiValues = chartData.map((d) => d.bmi);
+  const bmiValues = chartData
+    .map((d) => d.bmi)
+    .filter((v): v is number => v != null);
   const bmiMax = bmiValues.length ? Math.max(...bmiValues) : 30;
   const bmiMin = bmiValues.length ? Math.min(...bmiValues) : 18;
 
@@ -205,21 +233,22 @@ export function TrendsChart({
   // Left-axis domain: scaled to the *visible* main-axis series (not zero-based),
   // padded by 20% of the data range, then rounded out to the nearest 5. Recomputes
   // as series are toggled on/off.
-  const mainAxis = useMemo<{
+  const mainAxis: {
     domain: [number | string, number | string];
     ticks?: number[];
-  }>(() => {
+  } = (() => {
     const keys = TREND_SERIES.filter(
       (s) => s.axis === "main" && trendsVisible[s.key],
     ).map((s) => s.key);
     const vals: number[] = [];
     for (const d of chartData) {
       for (const k of keys) {
-        const v = d[k];
+        const v = (d as Record<string, unknown>)[k];
         if (typeof v === "number" && !Number.isNaN(v)) vals.push(v);
       }
     }
-    if (!vals.length) return { domain: [0, "auto"] };
+    if (!vals.length)
+      return { domain: [0, "auto"] as [number | string, number | string] };
     const min = Math.min(...vals);
     const max = Math.max(...vals);
     const pad = (max - min || max || 1) * 0.2;
@@ -228,11 +257,11 @@ export function TrendsChart({
     const ticks: number[] = [];
     for (let t = lo; t <= hi; t += 5) ticks.push(t);
     return { domain: [lo, hi], ticks };
-  }, [chartData, trendsVisible]);
+  })();
 
   // Mood drawn as a background tint: one band per gap between recordings,
   // coloured by the average mood of its endpoints.
-  const moodBands = useMemo(() => {
+  const moodBands: { x1: string; x2: string; color: string }[] = (() => {
     const bands: { x1: string; x2: string; color: string }[] = [];
     for (let i = 0; i < chartData.length - 1; i++) {
       const pair = [chartData[i].mood, chartData[i + 1].mood].filter(
@@ -247,31 +276,35 @@ export function TrendsChart({
       });
     }
     return bands;
-  }, [chartData]);
+  })();
 
-  // Group consecutive recordings with the same dose into blocks so each dose
-  // level is labelled once, centred under its run (null dose → "0 mg"). Each
-  // block extends to where the next dose begins, matching the stepped area, so
-  // the label sits in the middle of the visible block.
-  const doseBlocks = useMemo(() => {
-    const blocks: { x1: string; x2: string; label: string }[] = [];
-    if (!chartData.length) return blocks;
-    const last = chartData.length - 1;
-    const doseAt = (i: number) => chartData[i].mounjaroDoseMg ?? null;
-    let start = 0;
-    for (let i = 1; i <= chartData.length; i++) {
-      if (i === chartData.length || doseAt(i) !== doseAt(start)) {
-        const v = doseAt(start);
-        blocks.push({
-          x1: chartData[start].recordedOn,
-          x2: chartData[i < chartData.length ? i : last].recordedOn,
-          label: v == null ? "0 mg" : `${v} mg`,
-        });
-        start = i;
-      }
+  // Shaded blocks spanning each run of the same medication + dose, carried
+  // forward until the next change (or the chart's end). Doses are oldest-first.
+  const lastDate = allDates[allDates.length - 1];
+  const doseBlocks: { x1: string; x2: string; label: string }[] = [];
+  const sameDose = (a: DoseView, b: DoseView) =>
+    a.medication === b.medication && a.doseMg === b.doseMg;
+  let doseStart = 0;
+  for (let i = 1; i <= dosesInRange.length; i++) {
+    if (
+      i === dosesInRange.length ||
+      !sameDose(dosesInRange[i], dosesInRange[doseStart])
+    ) {
+      const cur = dosesInRange[doseStart];
+      doseBlocks.push({
+        x1: cur.recordedOn,
+        x2:
+          i < dosesInRange.length
+            ? dosesInRange[i].recordedOn
+            : (lastDate ?? cur.recordedOn),
+        label: `${medicationLabel(cur.medication)}${
+          cur.doseMg != null ? ` ${cur.doseMg} mg` : ""
+        }`,
+      });
+      doseStart = i;
     }
-    return blocks;
-  }, [chartData]);
+  }
+  const doseDates = dosesInRange.map((d) => d.recordedOn);
 
   const customActive = from !== "" || to !== "";
 
@@ -447,23 +480,58 @@ export function TrendsChart({
                 <YAxis yAxisId="dose" orientation="right" domain={[0, 20]} hide />
                 <YAxis yAxisId="scaleHidden" orientation="right" domain={[0, 5]} hide />
                 <YAxis yAxisId="bmiHidden" orientation="right" domain={bmiDomain} hide />
-                {trendsVisible.mounjaroDoseMg && (
-                  <Area
-                    yAxisId="dose"
-                    type="stepAfter"
-                    dataKey="doseStep"
-                    name="Dose"
-                    stroke="#6366f1"
-                    strokeWidth={1}
-                    strokeOpacity={0.4}
-                    fill="#6366f1"
-                    fillOpacity={0.12}
+                {/* Shaded band per medication+dose run (behind the lines). */}
+                {trendsVisible.mounjaroDoseMg &&
+                  doseBlocks.map((b, i) => (
+                    <ReferenceArea
+                      key={`dose-block-${i}`}
+                      yAxisId="main"
+                      x1={b.x1}
+                      x2={b.x2}
+                      fill="#6366f1"
+                      fillOpacity={0.08}
+                      ifOverflow="extendDomain"
+                      label={{
+                        value: b.label,
+                        position: "insideBottom",
+                        fill: "#6366f1",
+                        fontSize: 11,
+                        fontWeight: 600,
+                      }}
+                    />
+                  ))}
+                <Tooltip content={<TrendsTooltip />} />
+                {/* Dotted companions (gaps + edges) drawn under the solid lines. */}
+                {trendsVisible.weightKg && (
+                  <Line
+                    yAxisId="main"
+                    type={curveRounded}
+                    dataKey="weightKgDotted"
+                    name="Weight"
+                    stroke="#059669"
+                    strokeWidth={2}
+                    strokeDasharray="1 4"
+                    strokeLinecap="round"
                     dot={false}
+                    legendType="none"
                     isAnimationActive={false}
                   />
                 )}
-                <Tooltip content={<TrendsTooltip />} />
-                {/* Dotted companions (gaps + edges) drawn under the solid lines. */}
+                {trendsVisible.bmi && (
+                  <Line
+                    yAxisId="bmiHidden"
+                    type={curveRounded}
+                    dataKey="bmiDotted"
+                    name="BMI"
+                    stroke="#2563eb"
+                    strokeWidth={2}
+                    strokeDasharray="1 4"
+                    strokeLinecap="round"
+                    dot={false}
+                    legendType="none"
+                    isAnimationActive={false}
+                  />
+                )}
                 {trendsVisible.waistCm && (
                   <Line
                     yAxisId="main"
@@ -531,35 +599,26 @@ export function TrendsChart({
                     dot={false}
                   />
                 )}
-                {/* One dose label per block, centred at the bottom of the plot.
-                    Skip zero-width blocks (a lone dose change on the last day). */}
+                {/* A needle marker at each date a dose was administered. */}
                 {trendsVisible.mounjaroDoseMg &&
-                  doseBlocks
-                    .filter((b) => b.x1 !== b.x2)
-                    .map((b, i) => (
-                      <ReferenceArea
-                        key={`dose-label-${i}`}
-                        yAxisId="dose"
-                        x1={b.x1}
-                        x2={b.x2}
-                        fill="none"
-                        stroke="none"
-                        ifOverflow="extendDomain"
-                        label={{
-                          value: b.label,
-                          position: "insideBottom",
-                          fill: "#6366f1",
-                          fontSize: 11,
-                          fontWeight: 600,
-                        }}
-                      />
-                    ))}
+                  doseDates.map((d, i) => (
+                    <ReferenceArea
+                      key={`needle-${i}`}
+                      yAxisId="main"
+                      x1={d}
+                      x2={d}
+                      fill="none"
+                      stroke="none"
+                      ifOverflow="extendDomain"
+                      label={{ value: "💉", position: "insideTop", fontSize: 13 }}
+                    />
+                  ))}
               </ComposedChart>
             </ResponsiveContainer>
             <p className="mt-2 text-xs text-slate-400">
-              Weight and waist use the left axis. BMI and appetite are overlaid on
-              their own hidden scales, and the shaded area shows the Mounjaro dose
-              over time.
+              Weight and waist use the left axis; BMI and appetite are overlaid on
+              hidden scales. Shaded bands show each medication + dose period, with
+              a 💉 marking each dose administration.
             </p>
           </div>
 

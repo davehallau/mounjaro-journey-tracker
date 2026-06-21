@@ -1,12 +1,18 @@
 import Link from "next/link";
 import { format } from "date-fns";
-import { getActiveParticipant, getRecordings } from "@/lib/data";
+import { getActiveParticipant, getDoses, getRecordings } from "@/lib/data";
 import { bmiBand, roundBmi } from "@/lib/bmi";
 import { medicationLabel } from "@/lib/medications";
 import { AddRecordingPanel } from "@/components/add-recording-panel";
+import { AddDosePanel } from "@/components/add-dose-panel";
 import { BmiBadge } from "@/components/bmi-badge";
 import { DeleteForm } from "@/components/delete-form";
-import { createRecording, deleteRecording } from "./actions";
+import {
+  createDose,
+  createRecording,
+  deleteDose,
+  deleteRecording,
+} from "./actions";
 
 export async function generateMetadata() {
   const active = await getActiveParticipant();
@@ -18,15 +24,15 @@ export async function generateMetadata() {
 export default async function RecordingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ new?: string }>;
+  searchParams: Promise<{ new?: string; dose?: string }>;
 }) {
   const active = await getActiveParticipant();
-  const openAddForm = (await searchParams).new != null;
+  const sp = await searchParams;
 
   if (!active) {
     return (
       <div className="card text-center text-slate-500">
-        Add a participant first, then you can start logging recordings.{" "}
+        Add a participant first, then you can start logging.{" "}
         <Link
           href="/participants/new"
           className="font-medium text-emerald-700 hover:underline"
@@ -40,14 +46,16 @@ export default async function RecordingsPage({
   const { participant, fields, access } = active;
   const isOwner = access === "owner";
 
-  const rows = (
+  const bodyRows = (
     await getRecordings(participant.id, Number(participant.heightCm), fields)
-  ).slice()
-    .reverse(); // newest first for the table
+  )
+    .slice()
+    .reverse();
+  const doseRows = (await getDoses(participant.id)).slice().reverse();
   const today = format(new Date(), "yyyy-MM-dd");
-  // Pre-fill a new recording from the most recent one (rows are newest first).
-  const latest = rows[0] ?? null;
-  const createAction = createRecording.bind(null, participant.id);
+  const latest = bodyRows[0] ?? null;
+  const createBody = createRecording.bind(null, participant.id);
+  const createDoseAction = createDose.bind(null, participant.id);
 
   return (
     <div className="space-y-6">
@@ -57,30 +65,102 @@ export default async function RecordingsPage({
         </h1>
         <p className="mt-1 text-sm text-slate-500">
           {isOwner
-            ? "Add today's reading, or edit a past one below."
+            ? "Log a dose or your body & health data — separately."
             : "Shared with you · read-only."}
         </p>
       </div>
 
       {isOwner && (
-        <AddRecordingPanel
-          action={createAction}
-          defaultDate={today}
-          latest={latest}
-          initialOpen={openAddForm}
-        />
+        <div className="space-y-3">
+          <AddDosePanel
+            action={createDoseAction}
+            defaultDate={today}
+            initialOpen={sp.dose != null}
+          />
+          <AddRecordingPanel
+            action={createBody}
+            defaultDate={today}
+            latest={latest}
+            initialOpen={sp.new != null}
+          />
+        </div>
       )}
 
+      {/* Doses */}
       <section className="space-y-3">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-          History ({rows.length})
+          Doses ({doseRows.length})
         </h2>
-
-        {rows.length === 0 ? (
-          <div className="card text-sm text-slate-500">No recordings yet.</div>
+        {doseRows.length === 0 ? (
+          <div className="card text-sm text-slate-500">No doses recorded.</div>
         ) : (
           <div className="card overflow-x-auto p-0">
-            <table className="w-full min-w-[760px] text-sm">
+            <table className="w-full min-w-[480px] text-sm">
+              <thead>
+                <tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500">
+                  <th className="px-4 py-3">Date</th>
+                  <th className="px-4 py-3">Medication</th>
+                  <th className="px-4 py-3 text-center">Dose</th>
+                  {isOwner && <th className="px-4 py-3" />}
+                </tr>
+              </thead>
+              <tbody>
+                {doseRows.map((d) => (
+                  <tr
+                    key={d.id}
+                    className="border-b border-slate-100 last:border-0"
+                  >
+                    <td className="whitespace-nowrap px-4 py-3 font-medium text-slate-700">
+                      {format(new Date(d.recordedOn), "d MMM yyyy")}
+                    </td>
+                    <td className="px-4 py-3 text-slate-700">
+                      {medicationLabel(d.medication)}
+                    </td>
+                    <td className="px-4 py-3 text-center text-slate-600">
+                      {d.doseMg != null ? `${d.doseMg} mg` : "—"}
+                    </td>
+                    {isOwner && (
+                      <td className="whitespace-nowrap px-4 py-3">
+                        <div className="flex items-center justify-end gap-1">
+                          <Link
+                            href={`/recordings/doses/${d.id}`}
+                            title="Edit"
+                            aria-label="Edit"
+                            className="rounded-md p-1.5 text-emerald-700 transition hover:bg-emerald-50"
+                          >
+                            <PencilIcon />
+                          </Link>
+                          <DeleteForm
+                            action={deleteDose}
+                            id={d.id}
+                            label="Delete"
+                            trigger={<TrashIcon />}
+                            className="rounded-md p-1.5 text-red-600 transition hover:bg-red-50"
+                            confirmMessage="Delete this dose?"
+                          />
+                        </div>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      {/* Body & health */}
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+          Body &amp; health ({bodyRows.length})
+        </h2>
+        {bodyRows.length === 0 ? (
+          <div className="card text-sm text-slate-500">
+            No body &amp; health data recorded.
+          </div>
+        ) : (
+          <div className="card overflow-x-auto p-0">
+            <table className="w-full min-w-[680px] text-sm">
               <thead>
                 <tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500">
                   <th className="sticky left-0 z-10 border-r border-slate-100 bg-white px-4 py-3">
@@ -92,13 +172,12 @@ export default async function RecordingsPage({
                   <th className="px-4 py-3 text-center">Mood</th>
                   <th className="px-4 py-3 text-center">Energy</th>
                   <th className="px-4 py-3 text-center">Appetite</th>
-                  <th className="px-4 py-3 text-center">Medication</th>
                   <th className="px-4 py-3">Notes</th>
                   {isOwner && <th className="px-4 py-3" />}
                 </tr>
               </thead>
               <tbody>
-                {rows.map((r) => {
+                {bodyRows.map((r) => {
                   const band = bmiBand(r.bmi);
                   return (
                     <tr
@@ -128,15 +207,6 @@ export default async function RecordingsPage({
                       </td>
                       <td className="px-4 py-3 text-center text-slate-600">
                         {r.appetite ?? "—"}
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-3 text-center text-slate-600">
-                        {r.medication
-                          ? `${medicationLabel(r.medication)}${
-                              r.mounjaroDoseMg != null
-                                ? ` · ${r.mounjaroDoseMg} mg`
-                                : ""
-                            }`
-                          : "—"}
                       </td>
                       <td className="max-w-[200px] truncate px-4 py-3 text-slate-500">
                         {r.notes ?? ""}

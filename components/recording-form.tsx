@@ -5,7 +5,6 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { PrettySelect } from "@/components/pretty-select";
 import { DatePicker } from "@/components/date-picker";
-import { MedicationFields } from "@/components/medication-fields";
 import { appetiteColor, scaleColor } from "@/lib/scale-colors";
 import { EMPTY_FORM_STATE, SCALE_LABELS, type FormState } from "@/lib/validation";
 
@@ -18,8 +17,6 @@ type RecordingDefaults = {
   mood?: number | null;
   energy?: number | null;
   appetite?: number | null;
-  medication?: string | null;
-  mounjaroDoseMg?: string | number | null;
   notes?: string | null;
 };
 
@@ -104,16 +101,13 @@ export function RecordingForm({
       const n = Number(v);
       return Number.isNaN(n) ? String(v) : String(n);
     };
-    const med = (v: unknown) => (v == null || v === "" ? "none" : String(v));
     // Notes aren't pre-filled, so they're excluded from the duplicate check.
     const same =
       num(fd.get("weightKg")) === num(latest.weightKg) &&
       num(fd.get("waistCm")) === num(latest.waistCm) &&
       num(fd.get("mood")) === num(latest.mood) &&
       num(fd.get("energy")) === num(latest.energy) &&
-      num(fd.get("appetite")) === num(latest.appetite) &&
-      med(fd.get("medication")) === med(latest.medication) &&
-      num(fd.get("mounjaroDoseMg")) === num(latest.mounjaroDoseMg);
+      num(fd.get("appetite")) === num(latest.appetite);
     if (same) {
       e.preventDefault();
       setConfirmOpen(true);
@@ -205,20 +199,6 @@ export function RecordingForm({
           defaultValue={defaults?.appetite}
           colorFor={appetiteColor}
         />
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <MedicationFields
-          defaultMedication={defaults?.medication ?? null}
-          defaultDose={
-            defaults?.mounjaroDoseMg != null
-              ? Number(defaults.mounjaroDoseMg)
-              : null
-          }
-        />
-        {err.mounjaroDoseMg && (
-          <p className="field-error col-span-2">{err.mounjaroDoseMg}</p>
-        )}
       </div>
 
       <div>

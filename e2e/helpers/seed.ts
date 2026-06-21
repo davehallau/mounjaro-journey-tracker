@@ -69,9 +69,14 @@ export async function seedFixtures() {
 
     await db.query(
       `insert into recordings
-        (participant_id, recorded_on, weight_kg, waist_cm, mood, energy, appetite, medication, mounjaro_dose_mg, notes)
-       values ($1,'2026-06-01',90,100,4,3,2,'mounjaro',5,$2)`,
+        (participant_id, recorded_on, weight_kg, waist_cm, mood, energy, appetite, notes)
+       values ($1,'2026-06-01',90,100,4,3,2,$2)`,
       [alpha, SECRET_NOTE],
+    );
+    await db.query(
+      `insert into doses (participant_id, recorded_on, medication, dose_mg)
+       values ($1,'2026-06-01','mounjaro',5)`,
+      [alpha],
     );
 
     // Share Alpha with B: mood/energy/appetite on, notes + DOB OFF.

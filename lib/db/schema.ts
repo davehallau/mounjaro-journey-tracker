@@ -89,8 +89,9 @@ export const recordings = pgTable(
     mood: smallint("mood"), // 1..5
     energy: smallint("energy"), // 1..5
     appetite: smallint("appetite"), // 1..5
-    medication: text("medication"), // null = none; e.g. mounjaro | wegovy | ...
-    mounjaroDoseMg: numeric("mounjaro_dose_mg", { precision: 4, scale: 1 }), // dose in mg
+    // Deprecated: dose moved to the `doses` table; columns kept for safety.
+    medication: text("medication"),
+    mounjaroDoseMg: numeric("mounjaro_dose_mg", { precision: 4, scale: 1 }),
     notes: text("notes"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
@@ -107,5 +108,27 @@ export const recordings = pgTable(
   ],
 );
 
+// Medication doses — recorded independently of body/health measurements
+// (you may dose on a day you don't weigh/measure, and vice versa).
+export const doses = pgTable(
+  "doses",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    participantId: uuid("participant_id")
+      .notNull()
+      .references(() => participants.id, { onDelete: "cascade" }),
+    recordedOn: date("recorded_on").notNull(),
+    medication: text("medication").notNull(), // mounjaro | wegovy | ...
+    doseMg: numeric("dose_mg", { precision: 4, scale: 1 }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [
+    unique("doses_participant_date_uq").on(t.participantId, t.recordedOn),
+  ],
+);
+
 export type Participant = typeof participants.$inferSelect;
 export type Recording = typeof recordings.$inferSelect;
+export type Dose = typeof doses.$inferSelect;

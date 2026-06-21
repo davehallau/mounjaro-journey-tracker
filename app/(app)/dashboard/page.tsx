@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { cookies } from "next/headers";
-import { getActiveParticipant, getRecordings } from "@/lib/data";
+import { getActiveParticipant, getDoses, getRecordings } from "@/lib/data";
 import { bmiBand, roundBmi } from "@/lib/bmi";
+import { medicationLabel } from "@/lib/medications";
 import { TrendsChart, type RangeState } from "@/components/charts/trends-chart";
 
 async function readRange(): Promise<RangeState | undefined> {
@@ -45,13 +46,12 @@ export default async function DashboardPage() {
   const { participant, fields, access } = active;
   const isOwner = access === "owner";
 
-  const recordings = await getRecordings(
-    participant.id,
-    Number(participant.heightCm),
-    fields,
-  );
+  const [recordings, doses] = await Promise.all([
+    getRecordings(participant.id, Number(participant.heightCm), fields),
+    getDoses(participant.id),
+  ]);
 
-  if (recordings.length === 0) {
+  if (recordings.length === 0 && doses.length === 0) {
     return (
       <div className="space-y-4">
         <h1 className="text-xl font-semibold text-slate-900">
@@ -60,7 +60,7 @@ export default async function DashboardPage() {
         <div className="card text-center text-slate-500">
           {isOwner ? (
             <>
-              No recordings yet.{" "}
+              Nothing recorded yet.{" "}
               <Link
                 href="/recordings?new=1"
                 className="font-medium text-emerald-700 hover:underline"
@@ -70,21 +70,23 @@ export default async function DashboardPage() {
               to see your graphs.
             </>
           ) : (
-            "No recordings shared yet."
+            "Nothing shared yet."
           )}
         </div>
       </div>
     );
   }
 
+  const hasBody = recordings.length > 0;
   const first = recordings[0];
   const last = recordings[recordings.length - 1];
-  const weightChange = last.weightKg - first.weightKg;
-  const band = bmiBand(last.bmi);
+  const weightChange = hasBody ? last.weightKg - first.weightKg : 0;
+  const band = hasBody ? bmiBand(last.bmi) : null;
   const waistChange =
-    first.waistCm != null && last.waistCm != null
+    hasBody && first.waistCm != null && last.waistCm != null
       ? last.waistCm - first.waistCm
       : null;
+  const lastDose = doses[doses.length - 1] ?? null;
 
   return (
     <div className="space-y-6">
@@ -105,29 +107,45 @@ export default async function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Stat label="Latest weight" value={`${last.weightKg} kg`} />
+        <Stat
+          label="Latest weight"
+          value={hasBody ? `${last.weightKg} kg` : "—"}
+        />
         <Stat
           label="Change"
-          value={`${weightChange > 0 ? "+" : ""}${weightChange.toFixed(1)} kg`}
+          value={
+            hasBody
+              ? `${weightChange > 0 ? "+" : ""}${weightChange.toFixed(1)} kg`
+              : "—"
+          }
           tone={weightChange < 0 ? "good" : weightChange > 0 ? "bad" : "neutral"}
         />
         <Stat
           label="BMI"
-          value={`${roundBmi(last.bmi)}`}
-          sub={band.label}
-          dot={band.color}
+          value={hasBody ? `${roundBmi(last.bmi)}` : "—"}
+          sub={band?.label}
+          dot={band?.color}
         />
         <Stat
           label="Current dose"
           value={
-            last.mounjaroDoseMg != null ? `${last.mounjaroDoseMg} mg` : "—"
+            lastDose
+              ? `${medicationLabel(lastDose.medication)}${
+                  lastDose.doseMg != null ? ` ${lastDose.doseMg} mg` : ""
+                }`
+              : "—"
           }
-          sub={waistChange != null ? `Waist ${waistChange > 0 ? "+" : ""}${waistChange.toFixed(1)} cm` : undefined}
+          sub={
+            waistChange != null
+              ? `Waist ${waistChange > 0 ? "+" : ""}${waistChange.toFixed(1)} cm`
+              : undefined
+          }
         />
       </div>
 
       <TrendsChart
         data={recordings}
+        doses={doses}
         targetBmi={
           participant.targetBmi != null ? Number(participant.targetBmi) : null
         }

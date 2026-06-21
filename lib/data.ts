@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { and, asc, eq } from "drizzle-orm";
 import { db } from "./db";
-import { participants, recordings, shares } from "./db/schema";
+import { doses, participants, recordings, shares } from "./db/schema";
 import type { Participant } from "./db/schema";
 import { calcBmi } from "./bmi";
 import { auth } from "@/auth";
@@ -158,11 +158,31 @@ export type RecordingView = {
   mood: number | null;
   energy: number | null;
   appetite: number | null;
-  medication: string | null;
-  mounjaroDoseMg: number | null;
   notes: string | null;
   bmi: number;
 };
+
+export type DoseView = {
+  id: string;
+  recordedOn: string;
+  medication: string;
+  doseMg: number | null;
+};
+
+/** Dose administrations for a participant (oldest first). */
+export async function getDoses(participantId: string): Promise<DoseView[]> {
+  const rows = await db
+    .select()
+    .from(doses)
+    .where(eq(doses.participantId, participantId))
+    .orderBy(asc(doses.recordedOn));
+  return rows.map((d) => ({
+    id: d.id,
+    recordedOn: d.recordedOn,
+    medication: d.medication,
+    doseMg: d.doseMg == null ? null : Number(d.doseMg),
+  }));
+}
 
 const num = (v: string | null): number | null => (v == null ? null : Number(v));
 
@@ -191,12 +211,25 @@ export async function getRecordings(
       mood: fields.mood ? r.mood : null,
       energy: fields.energy ? r.energy : null,
       appetite: fields.appetite ? r.appetite : null,
-      medication: r.medication,
-      mounjaroDoseMg: num(r.mounjaroDoseMg),
       notes: fields.notes ? r.notes : null,
       bmi: calcBmi(weight, heightCm),
     };
   });
+}
+
+/** A dose for editing — only if the current user owns its participant. */
+export async function getDose(
+  id: string,
+): Promise<typeof doses.$inferSelect | null> {
+  const userId = await currentUserId();
+  if (!userId) return null;
+  const rows = await db
+    .select({ d: doses })
+    .from(doses)
+    .innerJoin(participants, eq(doses.participantId, participants.id))
+    .where(and(eq(doses.id, id), eq(participants.ownerUserId, userId)))
+    .limit(1);
+  return rows[0]?.d ?? null;
 }
 
 /** A recording for editing — only if the current user owns its participant. */
