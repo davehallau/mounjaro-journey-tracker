@@ -75,6 +75,7 @@ export default async function RecordingsPage({
           <AddDosePanel
             action={createDoseAction}
             defaultDate={today}
+            latest={doseRows[0] ?? null}
             initialOpen={sp.dose != null}
           />
           <AddRecordingPanel

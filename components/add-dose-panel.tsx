@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { DoseForm } from "@/components/dose-form";
+import type { DoseView } from "@/lib/data";
 import type { FormState } from "@/lib/validation";
 
 type Action = (state: FormState, formData: FormData) => Promise<FormState>;
@@ -10,10 +11,13 @@ type Action = (state: FormState, formData: FormData) => Promise<FormState>;
 export function AddDosePanel({
   action,
   defaultDate,
+  latest,
   initialOpen = false,
 }: {
   action: Action;
   defaultDate: string;
+  /** Most recent dose — its medication + dose pre-fill a new entry. */
+  latest: DoseView | null;
   initialOpen?: boolean;
 }) {
   const [open, setOpen] = useState(initialOpen);
@@ -23,7 +27,7 @@ export function AddDosePanel({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="btn-secondary w-full py-2.5"
+        className="btn-primary w-full py-2.5"
       >
         + Record Dose
       </button>
@@ -38,6 +42,11 @@ export function AddDosePanel({
       <DoseForm
         action={action}
         defaultDate={defaultDate}
+        dose={
+          latest
+            ? { medication: latest.medication, doseMg: latest.doseMg }
+            : undefined
+        }
         submitLabel="Save"
         onCancel={() => setOpen(false)}
       />

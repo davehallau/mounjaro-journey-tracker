@@ -52,7 +52,8 @@ const PRESETS: { label: string; months: number | "all" }[] = [
   { label: "All", months: "all" },
 ];
 
-const fmtDate = (d: string) => format(new Date(d), "d MMM");
+const fmtTs = (t: number) => format(new Date(t), "d MMM");
+const ts = (d: string) => new Date(d).getTime();
 
 // Straight lines with corners rounded to a small fixed radius (px). Because the
 // segments stay straight, a solid line and its dotted companion underneath align
@@ -159,6 +160,7 @@ export function TrendsChart({
     const d = doseByDate.get(date);
     return {
       recordedOn: date,
+      t: ts(date),
       weightKg: r?.weightKg ?? null,
       waistCm: r?.waistCm ?? null,
       mood: r?.mood ?? null,
@@ -261,8 +263,8 @@ export function TrendsChart({
 
   // Mood drawn as a background tint: one band per gap between recordings,
   // coloured by the average mood of its endpoints.
-  const moodBands: { x1: string; x2: string; color: string }[] = (() => {
-    const bands: { x1: string; x2: string; color: string }[] = [];
+  const moodBands: { x1: number; x2: number; color: string }[] = (() => {
+    const bands: { x1: number; x2: number; color: string }[] = [];
     for (let i = 0; i < chartData.length - 1; i++) {
       const pair = [chartData[i].mood, chartData[i + 1].mood].filter(
         (v): v is number => v != null,
@@ -270,8 +272,8 @@ export function TrendsChart({
       if (!pair.length) continue;
       const avg = pair.reduce((s, v) => s + v, 0) / pair.length;
       bands.push({
-        x1: chartData[i].recordedOn,
-        x2: chartData[i + 1].recordedOn,
+        x1: chartData[i].t,
+        x2: chartData[i + 1].t,
         color: scaleColorLight(avg),
       });
     }
@@ -281,7 +283,7 @@ export function TrendsChart({
   // Shaded blocks spanning each run of the same medication + dose, carried
   // forward until the next change (or the chart's end). Doses are oldest-first.
   const lastDate = allDates[allDates.length - 1];
-  const doseBlocks: { x1: string; x2: string; label: string }[] = [];
+  const doseBlocks: { x1: number; x2: number; label: string }[] = [];
   const sameDose = (a: DoseView, b: DoseView) =>
     a.medication === b.medication && a.doseMg === b.doseMg;
   let doseStart = 0;
@@ -292,11 +294,12 @@ export function TrendsChart({
     ) {
       const cur = dosesInRange[doseStart];
       doseBlocks.push({
-        x1: cur.recordedOn,
-        x2:
+        x1: ts(cur.recordedOn),
+        x2: ts(
           i < dosesInRange.length
             ? dosesInRange[i].recordedOn
             : (lastDate ?? cur.recordedOn),
+        ),
         label: `${medicationLabel(cur.medication)}${
           cur.doseMg != null ? ` ${cur.doseMg} mg` : ""
         }`,
@@ -304,7 +307,7 @@ export function TrendsChart({
       doseStart = i;
     }
   }
-  const doseDates = dosesInRange.map((d) => d.recordedOn);
+  const doseDates = dosesInRange.map((d) => ts(d.recordedOn));
 
   const customActive = from !== "" || to !== "";
 
@@ -461,8 +464,11 @@ export function TrendsChart({
               >
                 <CartesianGrid stroke="#eef2f7" vertical={false} />
                 <XAxis
-                  dataKey="recordedOn"
-                  tickFormatter={fmtDate}
+                  dataKey="t"
+                  type="number"
+                  scale="time"
+                  domain={["dataMin", "dataMax"]}
+                  tickFormatter={fmtTs}
                   tick={{ fontSize: 12, fill: "#64748b" }}
                   minTickGap={24}
                 />
@@ -644,8 +650,11 @@ export function TrendsChart({
               >
                 <CartesianGrid stroke="#eef2f7" vertical={false} />
                 <XAxis
-                  dataKey="recordedOn"
-                  tickFormatter={fmtDate}
+                  dataKey="t"
+                  type="number"
+                  scale="time"
+                  domain={["dataMin", "dataMax"]}
+                  tickFormatter={fmtTs}
                   tick={{ fontSize: 12, fill: "#64748b" }}
                   minTickGap={24}
                 />
@@ -763,8 +772,11 @@ export function TrendsChart({
               >
                 <CartesianGrid stroke="#eef2f7" vertical={false} />
                 <XAxis
-                  dataKey="recordedOn"
-                  tickFormatter={fmtDate}
+                  dataKey="t"
+                  type="number"
+                  scale="time"
+                  domain={["dataMin", "dataMax"]}
+                  tickFormatter={fmtTs}
                   tick={{ fontSize: 12, fill: "#64748b" }}
                   minTickGap={24}
                 />
@@ -805,6 +817,7 @@ export function TrendsChart({
                   name="BMI"
                   stroke="#334155"
                   strokeWidth={2}
+                  connectNulls
                   dot={<BmiDot />}
                   activeDot={{ r: 5 }}
                 />
@@ -879,7 +892,7 @@ type TooltipProps = {
     value?: number;
     color?: string;
     dataKey?: string | number;
-    payload?: RecordingView;
+    payload?: { doseMed?: string | null; doseMg?: number | null };
   }>;
 };
 
@@ -895,7 +908,9 @@ function TrendsTooltip({ active, label, payload }: TooltipProps) {
     seen.add(name);
     return true;
   });
-  if (!items.length) return null;
+  const row = payload[0]?.payload;
+  const hasDose = row?.doseMed != null;
+  if (!items.length && !hasDose) return null;
   return (
     <div className="rounded-lg border border-slate-200 bg-white p-3 text-xs shadow-md">
       <p className="mb-1 font-semibold text-slate-700">
@@ -912,6 +927,16 @@ function TrendsTooltip({ active, label, payload }: TooltipProps) {
             <span className="font-medium text-slate-800">{p.value}</span>
           </li>
         ))}
+        {hasDose && (
+          <li className="flex items-center gap-1.5">
+            <span aria-hidden="true">💉</span>
+            <span className="text-slate-500">Dose:</span>
+            <span className="font-medium text-slate-800">
+              {medicationLabel(row?.doseMed)}
+              {row?.doseMg != null ? ` ${row.doseMg} mg` : ""}
+            </span>
+          </li>
+        )}
       </ul>
     </div>
   );

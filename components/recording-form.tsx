@@ -127,8 +127,8 @@ export function RecordingForm({
       onSubmit={onSubmit}
       className="space-y-4"
     >
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <div>
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+        <div className="col-span-2 sm:col-span-1">
           <label className="label" htmlFor="recordedOn">
             Date
           </label>
@@ -179,7 +179,7 @@ export function RecordingForm({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <ScaleSelect
           name="mood"
           label="Mood"
