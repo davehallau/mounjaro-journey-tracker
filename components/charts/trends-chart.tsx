@@ -583,7 +583,8 @@ export function TrendsChart({
                     name={s.label}
                     stroke={s.color}
                     strokeWidth={2}
-                    dot={false}
+                    dot={{ r: 3, fill: s.color, stroke: "#fff", strokeWidth: 1 }}
+                    activeDot={{ r: 5 }}
                   />
                 ))}
                 {trendsVisible.appetite && (
@@ -594,7 +595,8 @@ export function TrendsChart({
                     name="Appetite"
                     stroke="#e11d48"
                     strokeWidth={2}
-                    dot={false}
+                    dot={{ r: 3, fill: "#e11d48", stroke: "#fff", strokeWidth: 1 }}
+                    activeDot={{ r: 5 }}
                   />
                 )}
                 {trendsVisible.bmi && (
@@ -605,7 +607,8 @@ export function TrendsChart({
                     name="BMI"
                     stroke="#2563eb"
                     strokeWidth={2}
-                    dot={false}
+                    dot={{ r: 3, fill: "#2563eb", stroke: "#fff", strokeWidth: 1 }}
+                    activeDot={{ r: 5 }}
                   />
                 )}
                 {/* Needle markers — their own dataset, tappable for details. */}
@@ -740,7 +743,8 @@ export function TrendsChart({
                     name={s.label}
                     stroke={s.color}
                     strokeWidth={2}
-                    dot={false}
+                    dot={{ r: 3, fill: s.color, stroke: "#fff", strokeWidth: 1 }}
+                    activeDot={{ r: 5 }}
                   />
                 ))}
                 {wellbeingVisible.mood && (
@@ -751,7 +755,8 @@ export function TrendsChart({
                     name="Mood"
                     stroke="#334155"
                     strokeWidth={2}
-                    dot={false}
+                    dot={{ r: 3, fill: "#334155", stroke: "#fff", strokeWidth: 1 }}
+                    activeDot={{ r: 5 }}
                   />
                 )}
               </ComposedChart>
