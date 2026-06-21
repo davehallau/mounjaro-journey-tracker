@@ -26,10 +26,30 @@ body {
   }
 
   .input {
-    @apply w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900
-      shadow-sm outline-none transition
+    @apply w-full min-w-0 rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900
+      shadow-sm outline-none transition accent-emerald-600
       focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/30
       disabled:cursor-not-allowed disabled:bg-slate-50;
+  }
+
+  /* Native date inputs: stop iOS Safari sizing them to content (which overflows
+     the row) and tidy them up to match the other fields. */
+  .input[type="date"] {
+    -webkit-appearance: none;
+    appearance: none;
+    box-sizing: border-box;
+  }
+  .input[type="date"]::-webkit-date-and-time-value {
+    text-align: left;
+    margin: 0;
+  }
+  .input[type="date"]::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    opacity: 0.5;
+    transition: opacity 0.15s;
+  }
+  .input[type="date"]::-webkit-calendar-picker-indicator:hover {
+    opacity: 0.9;
   }
 
   .field-error {
