@@ -9,6 +9,7 @@ import {
   ReferenceArea,
   ReferenceLine,
   ResponsiveContainer,
+  Scatter,
   Tooltip,
   XAxis,
   YAxis,
@@ -145,49 +146,29 @@ export function TrendsChart({
     return true;
   };
 
-  // Body recordings and dose administrations are recorded independently, so the
-  // x-axis is the union of both sets of dates.
+  // Body recordings and dose administrations are two independent date-driven
+  // datasets. Body readings drive the lines (plotted at their own dates); doses
+  // are an overlay (shaded bands + needle markers). Both share one time axis.
   const recsInRange = data.filter((d) => inRange(d.recordedOn));
   const dosesInRange = doses.filter((d) => inRange(d.recordedOn));
-  const recByDate = new Map(recsInRange.map((r) => [r.recordedOn, r]));
-  const doseByDate = new Map(dosesInRange.map((d) => [d.recordedOn, d]));
-  const allDates = Array.from(
-    new Set([...recByDate.keys(), ...doseByDate.keys()]),
-  ).sort();
 
-  const chartData = allDates.map((date) => {
-    const r = recByDate.get(date);
-    const d = doseByDate.get(date);
-    return {
-      recordedOn: date,
-      t: ts(date),
-      weightKg: r?.weightKg ?? null,
-      waistCm: r?.waistCm ?? null,
-      mood: r?.mood ?? null,
-      energy: r?.energy ?? null,
-      appetite: r?.appetite ?? null,
-      bmi: r ? roundBmi(r.bmi) : null,
-      doseMed: d?.medication ?? null,
-      doseMg: d?.doseMg ?? null,
-      // Dotted companions (filled below) bridge gaps left by days that only
-      // have a dose (no body reading) or vice versa.
-      weightKgDotted: null as number | null,
-      bmiDotted: null as number | null,
-      waistCmDotted: null as number | null,
-      moodDotted: null as number | null,
-      energyDotted: null as number | null,
-      appetiteDotted: null as number | null,
-    };
-  });
+  const chartData = recsInRange.map((r) => ({
+    recordedOn: r.recordedOn,
+    t: ts(r.recordedOn),
+    weightKg: r.weightKg as number | null,
+    waistCm: r.waistCm,
+    mood: r.mood,
+    energy: r.energy,
+    appetite: r.appetite,
+    bmi: roundBmi(r.bmi),
+    // Dotted companions bridge interior gaps in optional fields (filled below).
+    waistCmDotted: null as number | null,
+    moodDotted: null as number | null,
+    energyDotted: null as number | null,
+    appetiteDotted: null as number | null,
+  }));
 
-  for (const key of [
-    "weightKg",
-    "bmi",
-    "waistCm",
-    "mood",
-    "energy",
-    "appetite",
-  ] as const) {
+  for (const key of ["waistCm", "mood", "energy", "appetite"] as const) {
     const dottedKey = `${key}Dotted` as const;
     const reals: number[] = [];
     for (let i = 0; i < chartData.length; i++) {
@@ -280,9 +261,17 @@ export function TrendsChart({
     return bands;
   })();
 
-  // Shaded blocks spanning each run of the same medication + dose, carried
-  // forward until the next change (or the chart's end). Doses are oldest-first.
-  const lastDate = allDates[allDates.length - 1];
+  // Shared time range across both datasets (so doses beyond the last body
+  // reading still show, and vice versa).
+  const allTs = [
+    ...recsInRange.map((r) => ts(r.recordedOn)),
+    ...dosesInRange.map((d) => ts(d.recordedOn)),
+  ];
+  const tMin = allTs.length ? Math.min(...allTs) : 0;
+  const tMax = allTs.length ? Math.max(...allTs) : 0;
+
+  // Shaded bands spanning each run of the same medication + dose, carried
+  // forward until the next change (or the end of the visible range).
   const doseBlocks: { x1: number; x2: number; label: string }[] = [];
   const sameDose = (a: DoseView, b: DoseView) =>
     a.medication === b.medication && a.doseMg === b.doseMg;
@@ -295,11 +284,7 @@ export function TrendsChart({
       const cur = dosesInRange[doseStart];
       doseBlocks.push({
         x1: ts(cur.recordedOn),
-        x2: ts(
-          i < dosesInRange.length
-            ? dosesInRange[i].recordedOn
-            : (lastDate ?? cur.recordedOn),
-        ),
+        x2: i < dosesInRange.length ? ts(dosesInRange[i].recordedOn) : tMax,
         label: `${medicationLabel(cur.medication)}${
           cur.doseMg != null ? ` ${cur.doseMg} mg` : ""
         }`,
@@ -307,11 +292,16 @@ export function TrendsChart({
       doseStart = i;
     }
   }
-  const doseDates = dosesInRange.map((d) => ts(d.recordedOn));
+
+  // Needle markers as their own dataset — tappable for dose details.
+  const doseData = dosesInRange.map((d) => ({
+    t: ts(d.recordedOn),
+    doseY: 18,
+    medication: d.medication,
+    doseMg: d.doseMg,
+  }));
 
   // Evenly divide the visible time span into a fixed number of x-axis ticks.
-  const tMin = chartData.length ? chartData[0].t : 0;
-  const tMax = chartData.length ? chartData[chartData.length - 1].t : 0;
   const X_TICKS = 5;
   const xTicks =
     tMax > tMin
@@ -452,9 +442,9 @@ export function TrendsChart({
         </div>
       </div>
 
-      {chartData.length === 0 ? (
+      {chartData.length === 0 && doseData.length === 0 ? (
         <div className="card text-center text-sm text-slate-500">
-          No recordings in this range.
+          Nothing recorded in this range.
         </div>
       ) : (
         <>
@@ -519,37 +509,7 @@ export function TrendsChart({
                     />
                   ))}
                 <Tooltip content={<TrendsTooltip />} />
-                {/* Dotted companions (gaps + edges) drawn under the solid lines. */}
-                {trendsVisible.weightKg && (
-                  <Line
-                    yAxisId="main"
-                    type={curveRounded}
-                    dataKey="weightKgDotted"
-                    name="Weight"
-                    stroke="#059669"
-                    strokeWidth={2}
-                    strokeDasharray="1 4"
-                    strokeLinecap="round"
-                    dot={false}
-                    legendType="none"
-                    isAnimationActive={false}
-                  />
-                )}
-                {trendsVisible.bmi && (
-                  <Line
-                    yAxisId="bmiHidden"
-                    type={curveRounded}
-                    dataKey="bmiDotted"
-                    name="BMI"
-                    stroke="#2563eb"
-                    strokeWidth={2}
-                    strokeDasharray="1 4"
-                    strokeLinecap="round"
-                    dot={false}
-                    legendType="none"
-                    isAnimationActive={false}
-                  />
-                )}
+                {/* Dotted companions bridge interior gaps in optional fields. */}
                 {trendsVisible.waistCm && (
                   <Line
                     yAxisId="main"
@@ -592,7 +552,6 @@ export function TrendsChart({
                     name={s.label}
                     stroke={s.color}
                     strokeWidth={2}
-                    connectNulls
                     dot={false}
                   />
                 ))}
@@ -604,7 +563,6 @@ export function TrendsChart({
                     name="Appetite"
                     stroke="#e11d48"
                     strokeWidth={2}
-                    connectNulls
                     dot={false}
                   />
                 )}
@@ -616,24 +574,19 @@ export function TrendsChart({
                     name="BMI"
                     stroke="#2563eb"
                     strokeWidth={2}
-                    connectNulls
                     dot={false}
                   />
                 )}
-                {/* A needle marker at each date a dose was administered. */}
-                {trendsVisible.mounjaroDoseMg &&
-                  doseDates.map((d, i) => (
-                    <ReferenceArea
-                      key={`needle-${i}`}
-                      yAxisId="main"
-                      x1={d}
-                      x2={d}
-                      fill="none"
-                      stroke="none"
-                      ifOverflow="extendDomain"
-                      label={{ value: "💉", position: "insideTop", fontSize: 13 }}
-                    />
-                  ))}
+                {/* Needle markers — their own dataset, tappable for details. */}
+                {trendsVisible.mounjaroDoseMg && (
+                  <Scatter
+                    yAxisId="dose"
+                    data={doseData}
+                    dataKey="doseY"
+                    shape={<NeedleMarker />}
+                    isAnimationActive={false}
+                  />
+                )}
               </ComposedChart>
             </ResponsiveContainer>
             <p className="mt-2 text-xs text-slate-400">
@@ -754,7 +707,6 @@ export function TrendsChart({
                     name={s.label}
                     stroke={s.color}
                     strokeWidth={2}
-                    connectNulls
                     dot={false}
                   />
                 ))}
@@ -766,7 +718,6 @@ export function TrendsChart({
                     name="Mood"
                     stroke="#334155"
                     strokeWidth={2}
-                    connectNulls
                     dot={false}
                   />
                 )}
@@ -884,6 +835,23 @@ function MetricToggles({
 }
 
 // Colour each BMI point by its WHO category.
+function NeedleMarker(props: { cx?: number; cy?: number }) {
+  const { cx, cy } = props;
+  if (cx == null || cy == null) return <g />;
+  return (
+    <text
+      x={cx}
+      y={cy}
+      textAnchor="middle"
+      dominantBaseline="central"
+      fontSize={13}
+      style={{ cursor: "pointer" }}
+    >
+      💉
+    </text>
+  );
+}
+
 function BmiDot(props: {
   cx?: number;
   cy?: number;
@@ -911,24 +879,25 @@ type TooltipProps = {
     value?: number;
     color?: string;
     dataKey?: string | number;
-    payload?: { doseMed?: string | null; doseMg?: number | null };
+    payload?: { medication?: string | null; doseMg?: number | null };
   }>;
 };
 
 function TrendsTooltip({ active, label, payload }: TooltipProps) {
   if (!active || !payload?.length) return null;
-  // Drop empty series and the dotted companions (interpolated, not real data),
-  // and dedupe by name.
+  // Drop empty series, dotted companions, and the dose needle from the listed
+  // metrics; dedupe by name.
   const seen = new Set<string>();
   const items = payload.filter((p) => {
     const name = p.name ?? "";
+    const key = String(p.dataKey ?? "");
     if (p.value == null || seen.has(name)) return false;
-    if (String(p.dataKey ?? "").includes("Dotted")) return false;
+    if (key.includes("Dotted") || key === "doseY") return false;
     seen.add(name);
     return true;
   });
-  const row = payload[0]?.payload;
-  const hasDose = row?.doseMed != null;
+  const dose = payload.find((p) => p.payload?.medication != null)?.payload;
+  const hasDose = dose?.medication != null;
   if (!items.length && !hasDose) return null;
   return (
     <div className="rounded-lg border border-slate-200 bg-white p-3 text-xs shadow-md">
@@ -951,8 +920,8 @@ function TrendsTooltip({ active, label, payload }: TooltipProps) {
             <span aria-hidden="true">💉</span>
             <span className="text-slate-500">Dose:</span>
             <span className="font-medium text-slate-800">
-              {medicationLabel(row?.doseMed)}
-              {row?.doseMg != null ? ` ${row.doseMg} mg` : ""}
+              {medicationLabel(dose?.medication)}
+              {dose?.doseMg != null ? ` ${dose.doseMg} mg` : ""}
             </span>
           </li>
         )}
