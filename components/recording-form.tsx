@@ -63,28 +63,62 @@ function ScaleSelect({
 export function RecordingForm({
   action,
   defaultDate,
-  defaultDose,
+  latest,
   recording,
   submitLabel = "Save",
 }: {
   action: Action;
   defaultDate?: string;
-  /** Pre-select this dose for a new recording (e.g. the participant's latest). */
-  defaultDose?: number | null;
+  /**
+   * The participant's most recent recording, for a NEW entry: every field
+   * (except the date) is pre-filled from it, and submitting an unchanged copy
+   * asks for confirmation.
+   */
+  latest?: RecordingDefaults | null;
   recording?: RecordingDefaults;
   submitLabel?: string;
 }) {
   const [state, formAction, pending] = useActionState(action, EMPTY_FORM_STATE);
   const err = state.errors ?? {};
+  // Field defaults: an edited recording, else the latest one (new entry).
+  const defaults = recording ?? latest ?? null;
+  // The date always defaults to today for a new entry (never the latest's date).
+  const dateDefault = recording?.recordedOn ?? defaultDate;
   const doseDefault =
-    recording?.mounjaroDoseMg != null
-      ? String(Number(recording.mounjaroDoseMg))
-      : defaultDose != null
-        ? String(defaultDose)
-        : "none";
+    defaults?.mounjaroDoseMg != null
+      ? String(Number(defaults.mounjaroDoseMg))
+      : "none";
+
+  // Warn before adding a new recording identical to the latest (date aside).
+  const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    if (!latest) return;
+    const fd = new FormData(e.currentTarget);
+    const num = (v: unknown) => {
+      if (v == null || v === "" || v === "none") return "";
+      const n = Number(v);
+      return Number.isNaN(n) ? String(v) : String(n);
+    };
+    const txt = (v: unknown) => (v == null ? "" : String(v).trim());
+    const same =
+      num(fd.get("weightKg")) === num(latest.weightKg) &&
+      num(fd.get("waistCm")) === num(latest.waistCm) &&
+      num(fd.get("mood")) === num(latest.mood) &&
+      num(fd.get("energy")) === num(latest.energy) &&
+      num(fd.get("appetite")) === num(latest.appetite) &&
+      num(fd.get("mounjaroDoseMg")) === num(latest.mounjaroDoseMg) &&
+      txt(fd.get("notes")) === txt(latest.notes);
+    if (
+      same &&
+      !window.confirm(
+        "This recording is identical to your most recent one — only the date differs. Add it anyway?",
+      )
+    ) {
+      e.preventDefault();
+    }
+  };
 
   return (
-    <form action={formAction} className="space-y-4">
+    <form action={formAction} onSubmit={onSubmit} className="space-y-4">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div>
           <label className="label" htmlFor="recordedOn">
@@ -94,7 +128,7 @@ export function RecordingForm({
             id="recordedOn"
             name="recordedOn"
             type="date"
-            defaultValue={recording?.recordedOn ?? defaultDate}
+            defaultValue={dateDefault}
             required
             className="input"
           />
@@ -112,7 +146,7 @@ export function RecordingForm({
             step="0.1"
             min="20"
             max="400"
-            defaultValue={recording?.weightKg}
+            defaultValue={defaults?.weightKg}
             required
             className="input"
           />
@@ -130,7 +164,7 @@ export function RecordingForm({
             step="0.1"
             min="30"
             max="300"
-            defaultValue={recording?.waistCm ?? ""}
+            defaultValue={defaults?.waistCm ?? ""}
             className="input"
           />
           {err.waistCm && <p className="field-error">{err.waistCm}</p>}
@@ -142,19 +176,19 @@ export function RecordingForm({
           name="mood"
           label="Mood"
           options={SCALE_LABELS.mood}
-          defaultValue={recording?.mood}
+          defaultValue={defaults?.mood}
         />
         <ScaleSelect
           name="energy"
           label="Energy"
           options={SCALE_LABELS.energy}
-          defaultValue={recording?.energy}
+          defaultValue={defaults?.energy}
         />
         <ScaleSelect
           name="appetite"
           label="Appetite"
           options={SCALE_LABELS.appetite}
-          defaultValue={recording?.appetite}
+          defaultValue={defaults?.appetite}
           colorFor={appetiteColor}
         />
         <div>
@@ -185,7 +219,7 @@ export function RecordingForm({
           id="notes"
           name="notes"
           rows={2}
-          defaultValue={recording?.notes ?? ""}
+          defaultValue={defaults?.notes ?? ""}
           placeholder="Side effects, context, anything worth remembering…"
           className="input"
         />

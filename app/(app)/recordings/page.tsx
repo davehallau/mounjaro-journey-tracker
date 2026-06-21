@@ -36,8 +36,8 @@ export default async function RecordingsPage() {
   ).slice()
     .reverse(); // newest first for the table
   const today = format(new Date(), "yyyy-MM-dd");
-  // Default a new recording's dose to the most recent recorded dose.
-  const lastDose = rows.find((r) => r.mounjaroDoseMg != null)?.mounjaroDoseMg ?? null;
+  // Pre-fill a new recording from the most recent one (rows are newest first).
+  const latest = rows[0] ?? null;
   const createAction = createRecording.bind(null, participant.id);
 
   return (
@@ -58,7 +58,7 @@ export default async function RecordingsPage() {
         <RecordingForm
           action={createAction}
           defaultDate={today}
-          defaultDose={lastDose}
+          latest={latest}
           submitLabel="Add recording"
         />
       </section>
