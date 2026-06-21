@@ -24,13 +24,15 @@ function ScaleSelect({
   name,
   label,
   options,
-  defaultValue,
+  value,
+  onChange,
   colorFor = scaleColor,
 }: {
   name: string;
   label: string;
   options: readonly string[];
-  defaultValue?: number | null;
+  value: string;
+  onChange: (value: string) => void;
   colorFor?: (value: number) => string;
 }) {
   return (
@@ -42,7 +44,8 @@ function ScaleSelect({
         id={name}
         name={name}
         ariaLabel={label}
-        defaultValue={defaultValue != null ? String(defaultValue) : ""}
+        value={value}
+        onChange={onChange}
         options={[
           { value: "", label: "—" },
           ...options.map((opt, i) => ({
@@ -83,6 +86,31 @@ export function RecordingForm({
   const defaults = recording ?? latest ?? null;
   // The date always defaults to today for a new entry (never the latest's date).
   const dateDefault = recording?.recordedOn ?? defaultDate;
+
+  // Only a new entry carries the latest reading's values forward as pre-fills.
+  const isNewEntry = !recording && !!latest;
+  const initStr = (v: unknown) => (v == null || v === "" ? "" : String(v));
+  const [weightKg, setWeightKg] = useState(initStr(defaults?.weightKg));
+  const [waistCm, setWaistCm] = useState(initStr(defaults?.waistCm));
+  const [mood, setMood] = useState(initStr(defaults?.mood));
+  const [energy, setEnergy] = useState(initStr(defaults?.energy));
+  const [appetite, setAppetite] = useState(initStr(defaults?.appetite));
+  // Whether the user has touched any pre-filled field yet.
+  const [edited, setEdited] = useState(false);
+
+  // While the pre-fills are still pristine, picking a date earlier than the
+  // reading they came from clears them (they don't apply to the past); picking
+  // a later date restores them.
+  const onDateChange = (d: string) => {
+    if (!isNewEntry || edited) return;
+    const threshold = latest?.recordedOn ?? defaultDate ?? "";
+    const past = !!d && !!threshold && d < threshold;
+    setWeightKg(past ? "" : initStr(defaults?.weightKg));
+    setWaistCm(past ? "" : initStr(defaults?.waistCm));
+    setMood(past ? "" : initStr(defaults?.mood));
+    setEnergy(past ? "" : initStr(defaults?.energy));
+    setAppetite(past ? "" : initStr(defaults?.appetite));
+  };
 
   // Warn before adding a new recording identical to the latest (date aside).
   const formRef = useRef<HTMLFormElement>(null);
@@ -137,6 +165,7 @@ export function RecordingForm({
             name="recordedOn"
             ariaLabel="Date"
             defaultValue={dateDefault ?? ""}
+            onChange={onDateChange}
           />
           {err.recordedOn && <p className="field-error">{err.recordedOn}</p>}
         </div>
@@ -153,7 +182,11 @@ export function RecordingForm({
             step="0.1"
             min="20"
             max="400"
-            defaultValue={defaults?.weightKg}
+            value={weightKg}
+            onChange={(e) => {
+              setWeightKg(e.target.value);
+              setEdited(true);
+            }}
             required
             className="input"
           />
@@ -172,7 +205,11 @@ export function RecordingForm({
             step="0.1"
             min="30"
             max="300"
-            defaultValue={defaults?.waistCm ?? ""}
+            value={waistCm}
+            onChange={(e) => {
+              setWaistCm(e.target.value);
+              setEdited(true);
+            }}
             className="input"
           />
           {err.waistCm && <p className="field-error">{err.waistCm}</p>}
@@ -184,19 +221,31 @@ export function RecordingForm({
           name="mood"
           label="Mood"
           options={SCALE_LABELS.mood}
-          defaultValue={defaults?.mood}
+          value={mood}
+          onChange={(v) => {
+            setMood(v);
+            setEdited(true);
+          }}
         />
         <ScaleSelect
           name="energy"
           label="Energy"
           options={SCALE_LABELS.energy}
-          defaultValue={defaults?.energy}
+          value={energy}
+          onChange={(v) => {
+            setEnergy(v);
+            setEdited(true);
+          }}
         />
         <ScaleSelect
           name="appetite"
           label="Appetite"
           options={SCALE_LABELS.appetite}
-          defaultValue={defaults?.appetite}
+          value={appetite}
+          onChange={(v) => {
+            setAppetite(v);
+            setEdited(true);
+          }}
           colorFor={appetiteColor}
         />
       </div>

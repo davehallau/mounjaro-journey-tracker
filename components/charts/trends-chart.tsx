@@ -222,14 +222,13 @@ export function TrendsChart({
     if (!reals.length) continue;
     const firstIdx = reals[0];
     const lastIdx = reals[reals.length - 1];
-    const firstVal = chartData[firstIdx][key] as number;
     const lastVal = chartData[lastIdx][key] as number;
     for (let i = 0; i < chartData.length; i++) {
       const real = chartData[i][key];
       if (real != null) {
         chartData[i][dottedKey] = real;
       } else if (i < firstIdx) {
-        chartData[i][dottedKey] = firstVal; // flat lead-in
+        chartData[i][dottedKey] = null; // no line before the first reading
       } else if (i > lastIdx) {
         chartData[i][dottedKey] = lastVal; // flat lead-out
       } else {
